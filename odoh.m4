@@ -47,7 +47,8 @@ rule C_1:
 
 rule C_2:
 let
-  kem_context = <'g'^~x, gy>
+  gx = 'g'^~x
+  kem_context = <gx, gy>
   dh = gy^~x
   shared_secret = ExtractAndExpand(dh, kem_context)
   key_id = ~key_id
@@ -56,19 +57,34 @@ let
   resp_seed = ~n
 in
   [ C_1($C, $P, ~k, ~q)
-  , !Pk($T, ~key_id, gy),
+  , !Pk($T, ~key_id, gy)
   , Fr(~x)
   , Fr(~n)
   ]
 --[ Neq($P, $T)]->
-  [ Out(ODoHMessage) ] 
+  [ Out(senc(<$T, ODoHMessage>, ~k)) ] 
 
 rule P_1:
   [ KeyExS($C, $P, ~k)
-  , In(senc(q, ~k))
+  , In(senc(<$T, <gx, opaque_message>>, ~k))
   ]
 --[ Secret(~k) ]->
-  []
+  [Out(<$T, <gx, opaque_message>>)]
+
+rule T_1:
+let
+  gy = 'g'^~y
+  kem_context = <gx, gy>
+  dh = gx^~y
+  shared_secret = ExtractAndExpand(dh, kem_context)
+  expected_aad = <L, key_id, '0x01'>
+in
+  [ In(<$T, gx, ODoHMessage>)
+  , !Ltk($T, ~key_id, ~y)
+  ]
+--[ T_1(gy)
+  ]->
+  [Out('Done')]
 
 rule revSK:
   [ KeyExI($X, $Y, ~kxy) ]
@@ -77,5 +93,9 @@ rule revSK:
 
 lemma secret:
   "All x #i #j . K(x)@j & Secret(x)@i ==> Ex #k . RevSk(x)@k"
+
+lemma half_way:
+  exists-trace
+  "Ex gy #i . T_1(gy)@i"
 
 end
