@@ -37,15 +37,15 @@ rule Generate_DH_key_pair:
   , !Ltk($A,~key_id, ~x)
   ]
 
-rule C_1:
+rule C_QueryGeneration:
   [ KeyExC($C, $P, ~k)
   , Fr(~q)
   ]
 --[]->
-  [ C_1($C, $P, ~k, ~q)
+  [ C_QueryGeneration($C, $P, ~k, ~q)
   ]
 
-rule C_2:
+rule C_QueryEncryption:
 let
   gx = 'g'^~x
   kem_context = <gx, gy>
@@ -54,37 +54,47 @@ let
   key_id = ~key_id
   msg_type='0x01'
   query = ~q
-  resp_seed = ~n
 in
-  [ C_1($C, $P, ~k, ~q)
+  [ C_QueryGeneration($C, $P, ~k, ~q)
   , !Pk($T, ~key_id, gy)
   , Fr(~x)
-  , Fr(~n)
   ]
 --[ Neq($P, $T)]->
-  [ Out(senc(<$T, ODoHMessage>, ~k)) ] 
+  [ Out(senc(<$T, ODoHQuery>, ~k)) ] 
 
-rule P_1:
+rule P_HandleQuery:
   [ KeyExS($C, $P, ~k)
   , In(senc(<$T, <gx, opaque_message>>, ~k))
   ]
 --[ Secret(~k) ]->
   [Out(<$T, <gx, opaque_message>>)]
 
-rule T_1:
+rule T_HandleQuery:
 let
   gy = 'g'^~y
   kem_context = <gx, gy>
   dh = gx^~y
   shared_secret = ExtractAndExpand(dh, kem_context)
+  response_secret = ExtractAndExpand(shared_secret, 'odoh response')
   expected_aad = <L, key_id, '0x01'>
 in
-  [ In(<$T, gx, ODoHMessage>)
+  [ In(<$T, gx, ODoHQuery>)
   , !Ltk($T, ~key_id, ~y)
   ]
---[ T_1(gy)
-  ]->
-  [Out('Done')]
+--[ T_HandleQuery(gy) ]->
+  [ Out('Done')
+  , T_ResponseEncryption(msg_id, response_secret)]
+
+rule T_ResponseEncryption:
+let
+  msg_type='0x02'
+  response = ~r
+in
+  [ T_ResponseEncryption(msg_id, shared_secret)
+  , Fr(~r)
+  ]
+--[  ]->
+  [  ]
 
 rule revSK:
   [ KeyExI($X, $Y, ~kxy) ]
@@ -96,6 +106,6 @@ lemma secret:
 
 lemma half_way:
   exists-trace
-  "Ex gy #i . T_1(gy)@i"
+  "Ex gy #i . T_HandleQuery(gy)@i"
 
 end

@@ -1,2 +1,2 @@
-define(<!ODoHQBody!>,<!<query, resp_seed>!>)
-define(<!ODoHMessage!>,<!<key_id, msg_type, <gx, aead(shared_secret, ODoHQBody,<L, key_id, '0x01'>)>>!>)  
+define(<!ODoHQuery!>,<!<msg_id, key_id, msg_type, <gx, aead(shared_secret, query, <L, key_id, '0x01'>)>>!>)  
+define(<!ODoHResponse!>,<!<msg_id, key_id, msg_type, aead(psk, answer, <L, key_id, '0x02'>)>>!>) 
