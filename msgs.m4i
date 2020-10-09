@@ -1,2 +1,4 @@
-define(<!ODoHQuery!>,<!<msg_id, key_id, msg_type, <gx, aead(shared_secret, query, <L, key_id, '0x01'>)>>!>)  
-define(<!ODoHResponse!>,<!<msg_id, key_id, msg_type, aead(psk, answer, <L, key_id, '0x02'>)>>!>) 
+define(<!ODoHHeader!>,<!msg_id, key_id, msg_type!>)
+define(<!ODoHEBody!>,<!<gx, aead(shared_secret, query, <L, key_id, '0x01'>)>!>)
+define(<!ODoHQuery!>,<!< ODoHHeader, ODoHEBody >!>)  
+define(<!ODoHResponse!>,<!<ODoHHeader, aead(psk, answer, <L, key_id, '0x02'>)>!>) 

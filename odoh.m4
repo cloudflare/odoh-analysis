@@ -42,7 +42,7 @@ rule C_QueryGeneration:
   , Fr(~q)
   ]
 --[]->
-  [ C_QueryGeneration($C, $P, ~k, ~q)
+  [ C_QueryGeneration(~q, $C, $P, ~k)
   ]
 
 rule C_QueryEncryption:
@@ -51,23 +51,31 @@ let
   kem_context = <gx, gy>
   dh = gy^~x
   shared_secret = ExtractAndExpand(dh, kem_context)
+  response_secret = ExtractAndExpand(shared_secret, 'odoh_response')
   key_id = ~key_id
   msg_type='0x01'
   query = ~q
+  msg_id = ~msg_id
 in
-  [ C_QueryGeneration($C, $P, ~k, ~q)
+  [ C_QueryGeneration(~q, $C, $P, ~k)
   , !Pk($T, ~key_id, gy)
   , Fr(~x)
+  , Fr(~msg_id)
   ]
 --[ Neq($P, $T)]->
-  [ Out(senc(<$T, ODoHQuery>, ~k)) ] 
+  [ Out(senc(<$T, ODoHQuery>, ~k))
+  , C_ResponseHandler(query, $C, $P, ~k,  $T, response_secret, ~msg_id)
+  ] 
 
 rule P_HandleQuery:
   [ KeyExS($C, $P, ~k)
-  , In(senc(<$T, <gx, opaque_message>>, ~k))
+  , In(senc(<$T, <ODoHHeader, <gx, opaque_message>>>, ~k))
+  , Fr(~ptid)
   ]
 --[ Secret(~k) ]->
-  [Out(<$T, <gx, opaque_message>>)]
+  [Out(<$T, <ODoHHeader, <gx, opaque_message>>>)
+  , P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
+  ]
 
 rule T_HandleQuery:
 let
@@ -75,26 +83,50 @@ let
   kem_context = <gx, gy>
   dh = gx^~y
   shared_secret = ExtractAndExpand(dh, kem_context)
-  response_secret = ExtractAndExpand(shared_secret, 'odoh response')
+  response_secret = ExtractAndExpand(shared_secret, 'odoh_response')
   expected_aad = <L, key_id, '0x01'>
+  key_id = ~key_id
 in
-  [ In(<$T, gx, ODoHQuery>)
+  [ In(<$T, ODoHQuery>)
   , !Ltk($T, ~key_id, ~y)
+  , Fr(~ttid)
   ]
 --[ T_HandleQuery(gy) ]->
-  [ Out('Done')
-  , T_ResponseEncryption(msg_id, response_secret)]
+  [ T_ResponseEncryption(~ttid, msg_id, ~key_id, response_secret)
+  ]
 
 rule T_ResponseEncryption:
 let
   msg_type='0x02'
-  response = ~r
+  answer = ~r
+  psk = shared_secret
+  key_id = ~key_id
 in
-  [ T_ResponseEncryption(msg_id, shared_secret)
+  [ T_ResponseEncryption(~ttid, msg_id, ~key_id, shared_secret)
   , Fr(~r)
   ]
---[  ]->
-  [  ]
+--[ T_Done(~ttid, msg_id) ]->
+  [ Out(ODoHResponse) ]
+
+rule P_HandleResponse:
+  [ P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
+  , In(<ODoHHeader, opaque_message>)
+  ]
+--[ P_Done(~ptid, msg_id)]->
+  [ Out(senc(<ODoHHeader, opaque_message>, ~k)) ]
+
+rule C_HandleResponse:
+let
+  expected_msg_type = '0x02'
+  psk = response_secret
+  msg_id = ~msg_id
+in
+  [ C_ResponseHandler(~query, $C, $P, ~k,  $T, response_secret, ~msg_id)
+  , In(senc(ODoHResponse, ~k)) ]
+--[ Eq(expected_msg_type, msg_type)
+  , C_Done(~query, answer)
+  ]->
+  []
 
 rule revSK:
   [ KeyExI($X, $Y, ~kxy) ]
@@ -107,5 +139,9 @@ lemma secret:
 lemma half_way:
   exists-trace
   "Ex gy #i . T_HandleQuery(gy)@i"
+
+lemma end_to_end:
+  exists-trace
+  "Ex q a #i. C_Done(q, a)@i"
 
 end
