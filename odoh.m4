@@ -98,31 +98,21 @@ let
   response_secret = ExtractAndExpand(shared_secret, 'odoh_response')
   expected_aad = <L, key_id, '0x01'>
   key_id = ~key_id
+  msg_type2 = '0x02'
+  psk = response_secret
+  answer = r
 in
   [ In(<$T, ODoHQuery>)
   , !Ltk($T, ~key_id, ~y)
   , Fr(~ttid)
+  , In(r)
   ]
 --[ T_HandleQuery(gy)
   , Eq(msg_type, expected_msg_type)
-  ]->
-  [ T_ResponseEncryption(~ttid, $T, msg_id, query, ~key_id, response_secret)
-  ]
-
-rule T_ResponseEncryption:
-let
-  msg_type='0x02'
-  answer = r
-  psk = shared_secret
-  key_id = ~key_id
-in
-  [ T_ResponseEncryption(~ttid, $T, msg_id, query, ~key_id, shared_secret)
-  , In(r)
-  ]
---[ T_Done(~ttid, msg_id)
+  , T_Done(~ttid, msg_id)
   , T_Answer($T, query, answer)
   ]->
-  [ Out(ODoHResponse) ]
+  [ Out(ODoHResponse2) ]
 
 rule P_HandleResponse:
 let
