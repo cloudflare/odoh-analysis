@@ -242,12 +242,12 @@ rule (modulo E) T_HandleQuery:
 rule (modulo E) T_ResponseEncryption:
    [
    T_ResponseEncryption( ~ttid, msg_id, ~key_id, shared_secret ),
-   Fr( ~r )
+   In( r )
    ]
   --[ T_Done( ~ttid, msg_id ) ]->
    [
    Out( <msg_id, ~key_id, '0x02', 
-         aead(shared_secret, ~r, <'32', ~key_id, '0x02'>)>
+         aead(shared_secret, r, <'32', ~key_id, '0x02'>)>
    )
    ]
 
@@ -307,7 +307,253 @@ guarded formula characterizing all counter-examples:
     (∀ #i. (!KU( gx ) @ #i) ⇒ ¬(#i < #j)) ∨
     (∀ #i. (!KU( op ) @ #i) ⇒ ¬(#i < #j))))"
 */
-by sorry
+induction
+  case empty_trace
+  by contradiction /* from formulas */
+next
+  case non_empty_trace
+  simplify
+  solve( (∀ #i. (!KU( mid ) @ #i) ⇒ ¬(#i < #j))  ∥
+         (∀ #i. (!KU( gx ) @ #i) ⇒ ¬(#i < #j))  ∥
+         (∀ #i. (!KU( op ) @ #i) ⇒ ¬(#i < #j)) )
+    case case_1
+    solve( (last(#j))  ∥
+           (∃ #i.
+             (CQE_sources( mid, <gx, op> ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))  ∥
+           ((∃ #i. (!KU( mid ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
+            (∃ #i. (!KU( gx ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
+            (∃ #i. (!KU( op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))) )
+      case case_1
+      solve( KeyExS( $C, $P, ~k ) ▶₀ #j )
+        case Starter
+        solve( !KU( senc(<~connection_id, $T, mid, key_id, '0x01', gx, op>,
+                         ~k)
+               ) @ #vk )
+          case C_QueryEncryption
+          by contradiction /* from formulas */
+        next
+          case P_HandleQuery_case_1
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            by contradiction /* impossible chain */
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case P_HandleQuery_case_2
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            by contradiction /* impossible chain */
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case P_HandleQuery_case_3
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            solve( (#vr.6, 0) ~~> (#vk, 0) )
+              case d_0_decrypt
+              by contradiction /* impossible chain */
+            qed
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case c_senc
+          by contradiction /* from formulas */
+        qed
+      qed
+    next
+      case case_2
+      by contradiction /* from formulas */
+    next
+      case case_3
+      by contradiction /* from formulas */
+    qed
+  next
+    case case_2
+    solve( (last(#j))  ∥
+           (∃ #i.
+             (CQE_sources( mid, <gx, op> ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))  ∥
+           ((∃ #i. (!KU( mid ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
+            (∃ #i. (!KU( gx ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
+            (∃ #i. (!KU( op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))) )
+      case case_1
+      solve( KeyExS( $C, $P, ~k ) ▶₀ #j )
+        case Starter
+        solve( !KU( senc(<~connection_id, $T, mid, key_id, '0x01', gx, op>,
+                         ~k)
+               ) @ #vk )
+          case C_QueryEncryption
+          by contradiction /* from formulas */
+        next
+          case P_HandleQuery_case_1
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            by contradiction /* impossible chain */
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case P_HandleQuery_case_2
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            by contradiction /* impossible chain */
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case P_HandleQuery_case_3
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            solve( (#vr.6, 0) ~~> (#vk, 0) )
+              case d_0_decrypt
+              by contradiction /* impossible chain */
+            qed
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case c_senc
+          by contradiction /* from formulas */
+        qed
+      qed
+    next
+      case case_2
+      by contradiction /* from formulas */
+    next
+      case case_3
+      by contradiction /* from formulas */
+    qed
+  next
+    case case_3
+    solve( (last(#j))  ∥
+           (∃ #i.
+             (CQE_sources( mid, <gx, op> ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))  ∥
+           ((∃ #i. (!KU( mid ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
+            (∃ #i. (!KU( gx ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
+            (∃ #i. (!KU( op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))) )
+      case case_1
+      solve( KeyExS( $C, $P, ~k ) ▶₀ #j )
+        case Starter
+        solve( !KU( senc(<~connection_id, $T, mid, key_id, '0x01', gx, op>,
+                         ~k)
+               ) @ #vk )
+          case C_QueryEncryption
+          by contradiction /* from formulas */
+        next
+          case P_HandleQuery_case_1
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            by contradiction /* impossible chain */
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case P_HandleQuery_case_2
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            by contradiction /* impossible chain */
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case P_HandleQuery_case_3
+          solve( (∃ #i.
+                   (CQE_sources( msg_id, <gx.1, opaque_message> ) @ #i)
+                  ∧
+                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
+                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
+                  (∃ #i.
+                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
+            case case_1
+            solve( (#vr.6, 0) ~~> (#vk, 0) )
+              case d_0_decrypt
+              by contradiction /* impossible chain */
+            qed
+          next
+            case case_2
+            by contradiction /* cyclic */
+          qed
+        next
+          case c_senc
+          by contradiction /* from formulas */
+        qed
+      qed
+    next
+      case case_2
+      by contradiction /* from formulas */
+    next
+      case case_3
+      by contradiction /* from formulas */
+    qed
+  qed
+qed
 
 lemma end_to_end:
   exists-trace "∃ q a #i. C_Done( q, a ) @ #i"
@@ -315,7 +561,103 @@ lemma end_to_end:
 guarded formula characterizing all satisfying traces:
 "∃ q a #i. (C_Done( q, a ) @ #i)"
 */
-by sorry
+simplify
+solve( C_ResponseHandler( ~query, $C, $P, ~k, $T, response_secret,
+                          ~msg_id
+       ) ▶₀ #i )
+  case C_QueryEncryption
+  solve( !KU( senc(<~msg_id, key_id, '0x02', 
+                    aead(Expand(Extract('blank',
+                                        <'HPKE_05', 'eae_prk', 
+                                         Expand(Extract('blank',
+                                                        <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                <'32', 'HPKE_05', 'shared_secret', 'g'^~x.1, 'g'^~x
+                                                >,
+                                                '32')
+                                        >),
+                                <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
+                         a, <'32', key_id, '0x02'>)
+                   >,
+                   ~k)
+         ) @ #vk )
+    case P_HandleResponse
+    solve( !KU( aead(Expand(Extract('blank',
+                                    <'HPKE_05', 'eae_prk', 
+                                     Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
+                                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                            '32')
+                                    >),
+                            <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
+                     a, <'32', key_id, '0x02'>)
+           ) @ #vk.7 )
+      case T_ResponseEncryption
+      solve( !KU( aead(Expand(Extract('blank',
+                                      <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
+                              <'32', 'HPKE_05', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32'),
+                       query.1, <'32', ~key_id, '0x01'>)
+             ) @ #vk.20 )
+        case C_QueryEncryption
+        by sorry
+      next
+        case P_HandleQuery
+        solve( !KU( senc(<~connection_id.2, $T.2, ~msg_id, key_id.2, 
+                          '0x01', 'g'^~x.1, 
+                          aead(Expand(Extract('blank',
+                                              <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
+                                      <'32', 'HPKE_05', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32'),
+                               ~query, <'32', ~key_id, '0x01'>)
+                         >,
+                         ~k.1)
+               ) @ #vk.21 )
+          case C_QueryEncryption
+          solve( !KU( ~msg_id ) @ #vk.8 )
+            case P_HandleQuery
+            solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, key_id.1, 
+                              '0x01', 'g'^~x.1, 
+                              aead(Expand(Extract('blank',
+                                                  <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
+                                          <'32', 'HPKE_05', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                          '32'),
+                                   ~query, <'32', ~key_id, '0x01'>)
+                             >,
+                             ~k.1)
+                   ) @ #vk.20 )
+              case C_QueryEncryption
+              solve( !KU( 'g'^~x.1 ) @ #vk.19 )
+                case P_HandleQuery
+                solve( !KU( ~key_id ) @ #vk.13 )
+                  case C_QueryEncryption
+                  by sorry
+                next
+                  case Generate_DH_key_pair
+                  SOLVED // trace found
+                qed
+              next
+                case c_exp
+                by sorry
+              qed
+            next
+              case c_senc
+              by contradiction /* cyclic */
+            qed
+          qed
+        next
+          case c_senc
+          by contradiction /* cyclic */
+        qed
+      next
+        case c_aead
+        by sorry
+      qed
+    next
+      case c_aead
+      by sorry
+    qed
+  next
+    case c_senc
+    by sorry
+  qed
+qed
 
 lemma secret_query:
   all-traces
@@ -339,26 +681,29 @@ guarded formula characterizing all counter-examples:
     (¬(#i < #k)))"
 */
 simplify
-solve( !Pk( $T, ~key_id, gy ) ▶₁ #j )
-  case Generate_DH_key_pair
-  solve( C_QueryGeneration( ~q, $C, $P, ~k ) ▶₀ #j )
-    case C_QueryGeneration
+solve( C_QueryGeneration( ~q, $C, $P, ~k ) ▶₀ #j )
+  case C_QueryGeneration
+  solve( !Pk( $T, ~key_id, gy ) ▶₁ #j )
+    case Generate_DH_key_pair
     solve( !KU( ~q ) @ #k.1 )
       case C_QueryEncryption
-      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.16 )
-        case C_QueryEncryption
-        solve( !KU( ~x ) @ #vk.17 )
-          case RevDH
-          by contradiction /* from formulas */
-        qed
-      next
-        case Generate_DH_key_pair
-        by solve( !KU( ~x.1 ) @ #vk.17 )
-      next
-        case c_exp
-        solve( !KU( ~x ) @ #vk.19 )
-          case RevDH
-          by contradiction /* from formulas */
+      solve( !KU( ~k ) @ #vk.2 )
+        case RevSK
+        solve( !KU( 'g'^(~x*~x.1) ) @ #vk.16 )
+          case C_QueryEncryption
+          solve( !KU( ~x ) @ #vk.17 )
+            case RevDH
+            by contradiction /* from formulas */
+          qed
+        next
+          case Generate_DH_key_pair
+          by solve( !KU( ~x.1 ) @ #vk.17 )
+        next
+          case c_exp
+          solve( !KU( ~x ) @ #vk.19 )
+            case RevDH
+            by contradiction /* from formulas */
+          qed
         qed
       qed
     next

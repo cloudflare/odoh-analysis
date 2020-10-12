@@ -112,12 +112,12 @@ in
 rule T_ResponseEncryption:
 let
   msg_type='0x02'
-  answer = ~r
+  answer = r
   psk = shared_secret
   key_id = ~key_id
 in
   [ T_ResponseEncryption(~ttid, msg_id, ~key_id, shared_secret)
-  , Fr(~r)
+  , In(r)
   ]
 --[ T_Done(~ttid, msg_id) ]->
   [ Out(ODoHResponse) ]
