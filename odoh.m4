@@ -38,14 +38,6 @@ rule Generate_DH_key_pair:
   ]
 
 rule C_QueryGeneration:
-  [ KeyExC($C, $P, ~k)
-  , Fr(~q)
-  ]
---[]->
-  [ C_QueryGeneration(~q, $C, $P, ~k)
-  ]
-
-rule C_QueryEncryption:
 let
   gx = 'g'^~x
   kem_context = <gx, gy>
@@ -57,14 +49,15 @@ let
   query = ~q
   msg_id = ~msg_id
 in
-  [ C_QueryGeneration(~q, $C, $P, ~k)
+  [ KeyExC($C, $P, ~k)
   , !Pk($T, ~key_id, gy)
   , Fr(~x)
   , Fr(~msg_id)
   , Fr(~connection_id)
+  , Fr(~q)
   ]
 --[ Neq($P, $T)
-  , CQE_sources( ~msg_id, ODoHEBody )
+  , CQE_sources( ~msg_id, gx, ODoHEBody )
   , CQE($C, $P, $T, ~connection_id, ~q, ~msg_id, gx, gy, ~k)
   ]->
   [ Out(senc(<~connection_id, $T, ODoHQuery>, ~k))
@@ -109,6 +102,7 @@ in
   ]
 --[ T_HandleQuery(gy)
   , Eq(msg_type, expected_msg_type)
+  , Eq(aead_verify(ODoHEBody, <L, key_id, '0x01'>, shared_secret), true)
   , T_Done(~ttid, msg_id)
   , T_Answer($T, query, answer)
   ]->
@@ -135,6 +129,7 @@ in
   [ C_ResponseHandler(~query, $C, gx, $P, ~k,  $T, gy, response_secret, ~msg_id)
   , In(senc(ODoHResponse, ~k)) ]
 --[ Eq(msg_type, expected_msg_type)
+  , Eq(aead_verify(aead(psk, answer, <L, key_id, '0x02'>), <L, key_id, '0x02'>, psk), true)
   , C_Done(~query, answer, $C, gx,  $T, gy)
   ]->
   []
@@ -150,7 +145,7 @@ rule RevDH:
   [ Out(~x) ]
 
 lemma PHQ_source[sources]:
-  "All mid gx op #j. PHQ(mid, gx, op)@j ==> (Ex #i. CQE_sources(mid, <gx, op>)@i & #i < #j) | ((Ex #i. KU(mid)@i & #i < #j) & (Ex #i. KU(gx)@i & #i < #j) & (Ex #i. KU(op)@i & #i < #j))"
+  "All mid gx op #j. PHQ(mid, gx, op)@j ==> (Ex #i. CQE_sources(mid, gx, op)@i & #i < #j) | ((Ex #i. KU(mid)@i & #i < #j) & (Ex #i. KU(gx)@i & #i < #j) & (Ex #i. KU(op)@i & #i < #j))"
 
 lemma end_to_end:
   exists-trace
