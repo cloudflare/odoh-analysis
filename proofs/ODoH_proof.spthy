@@ -1,0 +1,486 @@
+theory ODoH begin
+
+// Function signature and definition of the equational theory E
+
+builtins: diffie-hellman
+functions: Expand/3, Extract/2, aead/3, aead_verify/3, decrypt/2,
+           fst/1, h/1, hmac/1, pair/2, pk/1, sdec/2, senc/2, sign/2, snd/1,
+           true/0, verify/3
+equations:
+    aead_verify(aead(k, p, a), a, k) = true,
+    decrypt(aead(k, p, a), k) = p,
+    fst(<x.1, x.2>) = x.1,
+    sdec(senc(x.1, x.2), x.2) = x.1,
+    snd(<x.1, x.2>) = x.2,
+    verify(sign(x.1, x.2), x.1, pk(x.2)) = true
+
+
+
+restriction Eq_check_succeed:
+  "∀ x y #i. (Eq( x, y ) @ #i) ⇒ (x = y)"
+  // safety formula
+
+restriction Neq_check_succeed:
+  "∀ x y #i. (Neq( x, y ) @ #i) ⇒ (¬(x = y))"
+  // safety formula
+
+rule (modulo E) Starter:
+   [ Fr( ~kxy ) ]
+  --[ Channel( $X, $Y ) ]->
+   [
+   KeyExC( $X, $Y, ~kxy ), KeyExS( $X, $Y, ~kxy ),
+   KeyExI( $X, $Y, ~kxy )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) Generate_DH_key_pair:
+   [ Fr( ~x ), Fr( ~key_id ) ]
+  -->
+   [
+   !Pk( $A, ~key_id, 'g'^~x ), Out( <~key_id, 'g'^~x> ),
+   !Ltk( $A, ~key_id, ~x )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) C_QueryGeneration:
+   [ KeyExC( $C, $P, ~k ), Fr( ~q ) ]
+  -->
+   [ C_QueryGeneration( ~q, $C, $P, ~k ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) C_QueryEncryption:
+   [
+   C_QueryGeneration( ~q, $C, $P, ~k ), !Pk( $T, ~key_id, gy ),
+   Fr( ~x ), Fr( ~msg_id ), Fr( ~connection_id )
+   ]
+  --[
+  Neq( $P, $T ),
+  CQE_sources( ~msg_id,
+               <'g'^~x, 
+                aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', gy^~x>),
+                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
+                     ~q, <'32', ~key_id, '0x01'>)
+               >
+  ),
+  CQE( $C, $P, $T, ~connection_id, ~q, ~msg_id, 'g'^~x, gy, ~k )
+  ]->
+   [
+   Out( senc(<~connection_id, $T, ~msg_id, ~key_id, '0x01', 'g'^~x, 
+              aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', gy^~x>),
+                          <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
+                   ~q, <'32', ~key_id, '0x01'>)
+             >,
+             ~k)
+   ),
+   C_ResponseHandler( ~q, $C, $P, ~k, $T,
+                      Expand(Extract('blank',
+                                     <'HPKE_05', 'eae_prk', 
+                                      Expand(Extract('blank', <'HPKE_05', 'eae_prk', gy^~x>),
+                                             <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32')
+                                     >),
+                             <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
+                      ~msg_id
+   )
+   ]
+
+  /*
+  rule (modulo AC) C_QueryEncryption:
+     [
+     C_QueryGeneration( ~q, $C, $P, ~k ), !Pk( $T, ~key_id, gy ),
+     Fr( ~x ), Fr( ~msg_id ), Fr( ~connection_id )
+     ]
+    --[
+    Neq( $P, $T ),
+    CQE_sources( ~msg_id,
+                 <'g'^~x, 
+                  aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
+                              <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
+                       ~q, <'32', ~key_id, '0x01'>)
+                 >
+    ),
+    CQE( $C, $P, $T, ~connection_id, ~q, ~msg_id, 'g'^~x, gy, ~k )
+    ]->
+     [
+     Out( senc(<~connection_id, $T, ~msg_id, ~key_id, '0x01', 'g'^~x, 
+                aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
+                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
+                     ~q, <'32', ~key_id, '0x01'>)
+               >,
+               ~k)
+     ),
+     C_ResponseHandler( ~q, $C, $P, ~k, $T,
+                        Expand(Extract('blank',
+                                       <'HPKE_05', 'eae_prk', 
+                                        Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
+                                               <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32')
+                                       >),
+                               <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
+                        ~msg_id
+     )
+     ]
+    variants (modulo AC)
+    1. ~x    = ~x.19
+       gy    = gy.20
+       z     = gy.20^~x.19
+    
+    2. ~x    = ~x.25
+       gy    = z.32^inv(~x.25)
+       z     = z.32
+    
+    3. ~x    = ~x.145
+       gy    = x.279^x.280
+       z     = x.279^(~x.145*x.280)
+    
+    4. ~x    = ~x.146
+       gy    = x.281^inv((~x.146*x.282))
+       z     = x.281^inv(x.282)
+    
+    5. ~x    = ~x.146
+       gy    = x.281^(x.282*inv(~x.146))
+       z     = x.281^x.282
+    
+    6. ~x    = ~x.147
+       gy    = x.282^(x.283*inv((~x.147*x.284)))
+       z     = x.282^(x.283*inv(x.284))
+  */
+
+rule (modulo E) P_HandleQuery:
+   [
+   KeyExS( $C, $P, ~k ),
+   In( senc(<~connection_id, $T, msg_id, key_id, msg_type, gx, 
+             opaque_message>,
+            ~k)
+   ),
+   Fr( ~ptid ), In( key_id )
+   ]
+  --[
+  Secret( ~k ), PHQ( msg_id, gx, opaque_message ),
+  Eq( msg_type, '0x01' )
+  ]->
+   [
+   Out( <$T, msg_id, key_id, msg_type, gx, opaque_message> ),
+   P_ResponseHandler( ~ptid, $C, $P, ~k, msg_id )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) T_HandleQuery:
+   [
+   In( <$T, msg_id, ~key_id, msg_type, gx, 
+        aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', gx^~y>),
+                    <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32'),
+             query, <'32', ~key_id, '0x01'>)
+       >
+   ),
+   !Ltk( $T, ~key_id, ~y ), Fr( ~ttid )
+   ]
+  --[ T_HandleQuery( 'g'^~y ), Eq( msg_type, '0x01' ) ]->
+   [
+   T_ResponseEncryption( ~ttid, msg_id, ~key_id,
+                         Expand(Extract('blank',
+                                        <'HPKE_05', 'eae_prk', 
+                                         Expand(Extract('blank', <'HPKE_05', 'eae_prk', gx^~y>),
+                                                <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>,
+                                                '32')
+                                        >),
+                                <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32')
+   )
+   ]
+
+  /*
+  rule (modulo AC) T_HandleQuery:
+     [
+     In( <$T, msg_id, ~key_id, msg_type, gx, 
+          aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
+                      <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32'),
+               query, <'32', ~key_id, '0x01'>)
+         >
+     ),
+     !Ltk( $T, ~key_id, ~y ), Fr( ~ttid )
+     ]
+    --[ T_HandleQuery( 'g'^~y ), Eq( msg_type, '0x01' ) ]->
+     [
+     T_ResponseEncryption( ~ttid, msg_id, ~key_id,
+                           Expand(Extract('blank',
+                                          <'HPKE_05', 'eae_prk', 
+                                           Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
+                                                  <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>,
+                                                  '32')
+                                          >),
+                                  <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32')
+     )
+     ]
+    variants (modulo AC)
+    1. ~y    = ~y.15
+       gx    = gx.16
+       z     = gx.16^~y.15
+    
+    2. ~y    = ~y.22
+       gx    = z.30^inv(~y.22)
+       z     = z.30
+    
+    3. ~y    = ~y.171
+       gx    = x.336^x.337
+       z     = x.336^(~y.171*x.337)
+    
+    4. ~y    = ~y.172
+       gx    = x.338^inv((~y.172*x.339))
+       z     = x.338^inv(x.339)
+    
+    5. ~y    = ~y.172
+       gx    = x.338^(x.339*inv(~y.172))
+       z     = x.338^x.339
+    
+    6. ~y    = ~y.173
+       gx    = x.339^(x.340*inv((~y.173*x.341)))
+       z     = x.339^(x.340*inv(x.341))
+  */
+
+rule (modulo E) T_ResponseEncryption:
+   [
+   T_ResponseEncryption( ~ttid, msg_id, ~key_id, shared_secret ),
+   Fr( ~r )
+   ]
+  --[ T_Done( ~ttid, msg_id ) ]->
+   [
+   Out( <msg_id, ~key_id, '0x02', 
+         aead(shared_secret, ~r, <'32', ~key_id, '0x02'>)>
+   )
+   ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) P_HandleResponse:
+   [
+   P_ResponseHandler( ~ptid, $C, $P, ~k, msg_id ),
+   In( <msg_id, key_id, msg_type, opaque_message> )
+   ]
+  --[ P_Done( ~ptid, msg_id ), Eq( msg_type, '0x02' ) ]->
+   [ Out( senc(<msg_id, key_id, msg_type, opaque_message>, ~k) ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) C_HandleResponse:
+   [
+   C_ResponseHandler( ~query, $C, $P, ~k, $T, response_secret, ~msg_id
+   ),
+   In( senc(<~msg_id, key_id, msg_type, 
+             aead(response_secret, answer, <'32', key_id, '0x02'>)>,
+            ~k)
+   )
+   ]
+  --[ Eq( msg_type, '0x02' ), C_Done( ~query, answer ) ]->
+   [ ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) RevSK:
+   [ KeyExI( $X, $Y, ~kxy ) ] --[ RevSk( ~kxy ) ]-> [ Out( ~kxy ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) RevDH:
+   [ !Ltk( $A, ~key_id, ~x ) ]
+  --[ RevDH( $A, ~key_id, 'g'^~x ) ]->
+   [ Out( ~x ) ]
+
+  /* has exactly the trivial AC variant */
+
+lemma PHQ_source [sources]:
+  all-traces
+  "∀ mid gx op #j.
+    (PHQ( mid, gx, op ) @ #j) ⇒
+    ((∃ #i. (CQE_sources( mid, <gx, op> ) @ #i) ∧ (#i < #j)) ∨
+     (((∃ #i. (!KU( mid ) @ #i) ∧ (#i < #j)) ∧
+       (∃ #i. (!KU( gx ) @ #i) ∧ (#i < #j))) ∧
+      (∃ #i. (!KU( op ) @ #i) ∧ (#i < #j))))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ mid gx op #j.
+  (PHQ( mid, gx, op ) @ #j)
+ ∧
+  (∀ #i. (CQE_sources( mid, <gx, op> ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (((∀ #i. (!KU( mid ) @ #i) ⇒ ¬(#i < #j)) ∨
+    (∀ #i. (!KU( gx ) @ #i) ⇒ ¬(#i < #j)) ∨
+    (∀ #i. (!KU( op ) @ #i) ⇒ ¬(#i < #j))))"
+*/
+by sorry
+
+lemma end_to_end:
+  exists-trace "∃ q a #i. C_Done( q, a ) @ #i"
+/*
+guarded formula characterizing all satisfying traces:
+"∃ q a #i. (C_Done( q, a ) @ #i)"
+*/
+by sorry
+
+lemma secret_query:
+  all-traces
+  "∀ C P T cid q msg_id gx gy key #j #k.
+    ((CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
+     (!KU( q ) @ #k)) ⇒
+    (∃ A kid gz #i.
+      ((RevDH( A, kid, gz ) @ #i) ∧
+       (((A = C) ∧ (gz = gx)) ∨ ((A = T) ∧ (gz = gy)))) ∧
+      (#i < #k))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ C P T cid q msg_id gx gy key #j #k.
+  (CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
+  (!KU( q ) @ #k)
+ ∧
+  ∀ A kid gz #i.
+   (RevDH( A, kid, gz ) @ #i)
+  ⇒
+   (((((¬(A = C)) ∨ (¬(gz = gx)))) ∧ (((¬(A = T)) ∨ (¬(gz = gy))))) ∨
+    (¬(#i < #k)))"
+*/
+simplify
+solve( !Pk( $T, ~key_id, gy ) ▶₁ #j )
+  case Generate_DH_key_pair
+  solve( C_QueryGeneration( ~q, $C, $P, ~k ) ▶₀ #j )
+    case C_QueryGeneration
+    solve( !KU( ~q ) @ #k.1 )
+      case C_QueryEncryption
+      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.16 )
+        case C_QueryEncryption
+        solve( !KU( ~x ) @ #vk.17 )
+          case RevDH
+          by contradiction /* from formulas */
+        qed
+      next
+        case Generate_DH_key_pair
+        by solve( !KU( ~x.1 ) @ #vk.17 )
+      next
+        case c_exp
+        solve( !KU( ~x ) @ #vk.19 )
+          case RevDH
+          by contradiction /* from formulas */
+        qed
+      qed
+    next
+      case P_HandleQuery
+      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.17 )
+        case Generate_DH_key_pair
+        by solve( !KU( ~x.1 ) @ #vk.18 )
+      next
+        case P_HandleQuery
+        solve( !KU( ~x ) @ #vk.18 )
+          case RevDH
+          by contradiction /* from formulas */
+        qed
+      next
+        case c_exp
+        solve( !KU( ~x ) @ #vk.20 )
+          case RevDH
+          by contradiction /* from formulas */
+        qed
+      qed
+    qed
+  qed
+qed
+
+lemma query_binding:
+  all-traces
+  "∀ C P T cid q msg_id gx gy key #j #k #l.
+    (((CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
+      (!KU( q ) @ #k)) ∧
+     (!KU( cid ) @ #l)) ⇒
+    (∃ A kid gz #h #i.
+      ((((RevDH( A, kid, gz ) @ #i) ∧
+         (((A = C) ∧ (gz = gx)) ∨ ((A = T) ∧ (gz = gy)))) ∧
+        (#i < #k)) ∧
+       (RevSk( key ) @ #h)) ∧
+      (#h < #l))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ C P T cid q msg_id gx gy key #j #k #l.
+  (CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
+  (!KU( q ) @ #k) ∧
+  (!KU( cid ) @ #l)
+ ∧
+  ∀ A kid gz #h #i.
+   (RevDH( A, kid, gz ) @ #i) ∧ (RevSk( key ) @ #h)
+  ⇒
+   (((((¬(A = C)) ∨ (¬(gz = gx)))) ∧ (((¬(A = T)) ∨ (¬(gz = gy))))) ∨
+    (¬(#i < #k)) ∨
+    (¬(#h < #l)))"
+*/
+simplify
+solve( C_QueryGeneration( ~q, $C, $P, ~k ) ▶₀ #j )
+  case C_QueryGeneration
+  solve( !Pk( $T, ~key_id, gy ) ▶₁ #j )
+    case Generate_DH_key_pair
+    solve( !KU( ~q ) @ #k.1 )
+      case C_QueryEncryption
+      solve( !KU( ~k ) @ #vk.2 )
+        case RevSK
+        solve( !KU( 'g'^(~x*~x.1) ) @ #vk.16 )
+          case C_QueryEncryption
+          solve( !KU( ~x ) @ #vk.17 )
+            case RevDH
+            solve( (#vr.11 = #l)  ∥ (#l < #vr.11) )
+              case case_1
+              by solve( !KU( ~connection_id ) @ #l )
+            next
+              case case_2
+              solve( !KU( ~connection_id ) @ #l )
+                case C_QueryEncryption
+                by contradiction /* cyclic */
+              qed
+            qed
+          qed
+        next
+          case Generate_DH_key_pair
+          by solve( !KU( ~x.1 ) @ #vk.17 )
+        next
+          case c_exp
+          solve( !KU( ~x ) @ #vk.19 )
+            case RevDH
+            solve( (#vr.11 = #l)  ∥ (#l < #vr.11) )
+              case case_1
+              by solve( !KU( ~connection_id ) @ #l )
+            next
+              case case_2
+              solve( !KU( ~connection_id ) @ #l )
+                case C_QueryEncryption
+                by contradiction /* cyclic */
+              qed
+            qed
+          qed
+        qed
+      qed
+    next
+      case P_HandleQuery
+      solve( !KU( ~connection_id ) @ #l )
+        case C_QueryEncryption
+        solve( !KU( ~k ) @ #vk.18 )
+          case RevSK
+          solve( !KU( 'g'^(~x*~x.1) ) @ #vk.18 )
+            case Generate_DH_key_pair
+            by solve( !KU( ~x.1 ) @ #vk.19 )
+          next
+            case P_HandleQuery
+            solve( !KU( ~x ) @ #vk.19 )
+              case RevDH
+              by contradiction /* from formulas */
+            qed
+          next
+            case c_exp
+            solve( !KU( ~x ) @ #vk.21 )
+              case RevDH
+              by contradiction /* from formulas */
+            qed
+          qed
+        qed
+      qed
+    qed
+  qed
+qed
+
+/* All well-formedness checks were successful. */
+
+end

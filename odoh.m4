@@ -8,7 +8,7 @@ theory ODoH begin
 
 builtins: diffie-hellman, hashing, symmetric-encryption, signing
 
-functions: Expand/3, Extract/2, hmac/1, aead/3, decrypt/2, aead_verify/3 
+functions: Expand/3, Extract/2, hmac/1, aead/3, decrypt/2, aead_verify/3
 
 restriction Eq_check_succeed: "All x y #i. Eq(x,y) @ i ==> x = y"
 restriction Neq_check_succeed: "All x y #i. Neq(x,y) @ i ==> not (x = y)"
@@ -61,24 +61,36 @@ in
   , !Pk($T, ~key_id, gy)
   , Fr(~x)
   , Fr(~msg_id)
+  , Fr(~connection_id)
   ]
---[ Neq($P, $T)]->
-  [ Out(senc(<$T, ODoHQuery>, ~k))
+--[ Neq($P, $T)
+  , CQE_sources( ~msg_id, ODoHEBody )
+  , CQE($C, $P, $T, ~connection_id, ~q, ~msg_id, gx, gy, ~k)
+  ]->
+  [ Out(senc(<~connection_id, $T, ODoHQuery>, ~k))
   , C_ResponseHandler(query, $C, $P, ~k,  $T, response_secret, ~msg_id)
-  ] 
+  ]
 
 rule P_HandleQuery:
+let
+  expected_msg_type = '0x01'
+in
   [ KeyExS($C, $P, ~k)
-  , In(senc(<$T, <ODoHHeader, <gx, opaque_message>>>, ~k))
+  , In(senc(<~connection_id, $T, <ODoHHeader, <gx, opaque_message>>>, ~k))
   , Fr(~ptid)
+  , In(key_id)
   ]
---[ Secret(~k) ]->
+--[ Secret(~k)
+  , PHQ(msg_id, gx, opaque_message)
+  , Eq(msg_type, expected_msg_type)
+  ]->
   [Out(<$T, <ODoHHeader, <gx, opaque_message>>>)
   , P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
   ]
 
 rule T_HandleQuery:
 let
+  expected_msg_type = '0x01'
   gy = 'g'^~y
   kem_context = <gx, gy>
   dh = gx^~y
@@ -91,7 +103,9 @@ in
   , !Ltk($T, ~key_id, ~y)
   , Fr(~ttid)
   ]
---[ T_HandleQuery(gy) ]->
+--[ T_HandleQuery(gy)
+  , Eq(msg_type, expected_msg_type)
+  ]->
   [ T_ResponseEncryption(~ttid, msg_id, ~key_id, response_secret)
   ]
 
@@ -109,10 +123,15 @@ in
   [ Out(ODoHResponse) ]
 
 rule P_HandleResponse:
+let
+  expected_msg_type = '0x02'
+in
   [ P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
   , In(<ODoHHeader, opaque_message>)
   ]
---[ P_Done(~ptid, msg_id)]->
+--[ P_Done(~ptid, msg_id)
+  , Eq(msg_type, expected_msg_type)
+  ]->
   [ Out(senc(<ODoHHeader, opaque_message>, ~k)) ]
 
 rule C_HandleResponse:
@@ -123,25 +142,55 @@ let
 in
   [ C_ResponseHandler(~query, $C, $P, ~k,  $T, response_secret, ~msg_id)
   , In(senc(ODoHResponse, ~k)) ]
---[ Eq(expected_msg_type, msg_type)
+--[ Eq(msg_type, expected_msg_type)
   , C_Done(~query, answer)
   ]->
   []
 
-rule revSK:
+rule RevSK:
   [ KeyExI($X, $Y, ~kxy) ]
 --[ RevSk(~kxy) ]->
   [ Out(~kxy) ]
 
-lemma secret:
-  "All x #i #j . K(x)@j & Secret(x)@i ==> Ex #k . RevSk(x)@k"
+rule RevDH:
+  [ !Ltk($A,~key_id, ~x) ]
+--[ RevDH($A, ~key_id, 'g'^~x) ]->
+  [ Out(~x) ]
 
-lemma half_way:
-  exists-trace
-  "Ex gy #i . T_HandleQuery(gy)@i"
+lemma PHQ_source[sources]:
+  "All mid gx op #j. PHQ(mid, gx, op)@j ==> (Ex #i. CQE_sources(mid, <gx, op>)@i & #i < #j) | ((Ex #i. KU(mid)@i & #i < #j) & (Ex #i. KU(gx)@i & #i < #j) & (Ex #i. KU(op)@i & #i < #j))"
 
 lemma end_to_end:
   exists-trace
   "Ex q a #i. C_Done(q, a)@i"
+
+lemma secret_query:
+  "All C P T cid q msg_id gx gy key #j #k.
+    CQE(C, P, T, cid, q, msg_id, gx, gy, key)@j &
+    KU(q)@k
+==>
+  Ex A kid gz #i.
+    RevDH(A, kid, gz)@i &
+    (
+      ((A = C) & (gz = gx))
+    | ((A = T) & (gz = gy))
+    ) &
+    #i < #k"
+
+lemma query_binding:
+  "All C P T cid q msg_id gx gy key #j #k #l.
+    CQE(C, P, T, cid, q, msg_id, gx, gy, key)@j &
+    KU(q)@k &
+    KU(cid)@l
+==>
+  Ex A kid gz #h #i.
+    RevDH(A, kid, gz)@i &
+    (
+      ((A = C) & (gz = gx))
+    | ((A = T) & (gz = gy))
+    ) &
+    #i < #k &
+    RevSk(key)@h &
+    #h < #l"
 
 end
