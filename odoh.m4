@@ -68,7 +68,7 @@ in
   , CQE($C, $P, $T, ~connection_id, ~q, ~msg_id, gx, gy, ~k)
   ]->
   [ Out(senc(<~connection_id, $T, ODoHQuery>, ~k))
-  , C_ResponseHandler(query, $C, $P, ~k,  $T, response_secret, ~msg_id)
+  , C_ResponseHandler(query, $C, gx,  $P, ~k,  $T, gy, response_secret, ~msg_id)
   ]
 
 rule P_HandleQuery:
@@ -106,7 +106,7 @@ in
 --[ T_HandleQuery(gy)
   , Eq(msg_type, expected_msg_type)
   ]->
-  [ T_ResponseEncryption(~ttid, msg_id, ~key_id, response_secret)
+  [ T_ResponseEncryption(~ttid, $T, msg_id, query, ~key_id, response_secret)
   ]
 
 rule T_ResponseEncryption:
@@ -116,10 +116,12 @@ let
   psk = shared_secret
   key_id = ~key_id
 in
-  [ T_ResponseEncryption(~ttid, msg_id, ~key_id, shared_secret)
+  [ T_ResponseEncryption(~ttid, $T, msg_id, query, ~key_id, shared_secret)
   , In(r)
   ]
---[ T_Done(~ttid, msg_id) ]->
+--[ T_Done(~ttid, msg_id)
+  , T_Answer($T, query, answer)
+  ]->
   [ Out(ODoHResponse) ]
 
 rule P_HandleResponse:
@@ -140,10 +142,10 @@ let
   psk = response_secret
   msg_id = ~msg_id
 in
-  [ C_ResponseHandler(~query, $C, $P, ~k,  $T, response_secret, ~msg_id)
+  [ C_ResponseHandler(~query, $C, gx, $P, ~k,  $T, gy, response_secret, ~msg_id)
   , In(senc(ODoHResponse, ~k)) ]
 --[ Eq(msg_type, expected_msg_type)
-  , C_Done(~query, answer)
+  , C_Done(~query, answer, $C, gx,  $T, gy)
   ]->
   []
 
@@ -162,7 +164,7 @@ lemma PHQ_source[sources]:
 
 lemma end_to_end:
   exists-trace
-  "Ex q a #i. C_Done(q, a)@i"
+  "Ex q a  C gx T gy #i. C_Done(q, a, C, gx, T, gy)@i"
 
 lemma secret_query:
   "All C P T cid q msg_id gx gy key #j #k.
@@ -192,5 +194,18 @@ lemma query_binding:
     #i < #k &
     RevSk(key)@h &
     #h < #l"
+
+lemma consistency:
+  "All q a C gx T gy #j. C_Done(q, a, C, gx, T, gy)@j
+==>
+  (Ex #i. T_Answer(T, q, a)@i & #i < #j) |
+  (Ex A kid gz #i.
+    RevDH(A, kid, gz)@i &
+    (
+      ((A = C) & (gz = gx))
+    | ((A = T) & (gz = gy))
+    ) &
+    #i < #j)"
+
 
 end
