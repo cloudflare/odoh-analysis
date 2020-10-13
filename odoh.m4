@@ -73,8 +73,7 @@ in
   , Fr(~ptid)
   , In(key_id)
   ]
---[ Secret(~k)
-  , PHQ(msg_id, gx, opaque_message)
+--[ PHQ(msg_id, gx, opaque_message)
   , Eq(msg_type, expected_msg_type)
   ]->
   [Out(<$T, <ODoHHeader, <gx, opaque_message>>>)
@@ -100,8 +99,7 @@ in
   , Fr(~ttid)
   , In(r)
   ]
---[ T_HandleQuery(gy)
-  , Eq(msg_type, expected_msg_type)
+--[ Eq(msg_type, expected_msg_type)
   , Eq(aead_verify(ODoHEBody, <L, key_id, '0x01'>, shared_secret), true)
   , T_Done(~ttid, msg_id)
   , T_Answer($T, query, answer)
@@ -162,6 +160,15 @@ lemma secret_query:
       ((A = C) & (gz = gx))
     | ((A = T) & (gz = gy))
     ) &
+    #i < #k"
+
+lemma secret_cid:
+  "All C P T cid q msg_id gx gy key #j #k.
+    CQE(C, P, T, cid, q, msg_id, gx, gy, key)@j &
+    KU(cid)@k
+==>
+  Ex #i.
+    RevSk(key)@i &
     #i < #k"
 
 lemma query_binding:
