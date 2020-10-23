@@ -154,12 +154,8 @@ lemma secret_query:
     CQE(C, P, T, cid, q, msg_id, gx, gy, key)@j &
     KU(q)@k
 ==>
-  Ex A kid gz #i.
-    RevDH(A, kid, gz)@i &
-    (
-      ((A = C) & (gz = gx))
-    | ((A = T) & (gz = gy))
-    ) &
+  Ex kid #i.
+    RevDH(T, kid, gy)@i &
     #i < #k"
 
 lemma secret_cid:
@@ -177,12 +173,8 @@ lemma query_binding:
     KU(q)@k &
     KU(cid)@l
 ==>
-  Ex A kid gz #h #i.
-    RevDH(A, kid, gz)@i &
-    (
-      ((A = C) & (gz = gx))
-    | ((A = T) & (gz = gy))
-    ) &
+  Ex kid #h #i.
+    RevDH(T, kid, gy)@i &
     #i < #k &
     RevSk(key)@h &
     #h < #l"
@@ -191,12 +183,8 @@ lemma consistency:
   "All q a C gx T gy #j. C_Done(q, a, C, gx, T, gy)@j
 ==>
   (Ex #i. T_Answer(T, q, a)@i & #i < #j) |
-  (Ex A kid gz #i.
-    RevDH(A, kid, gz)@i &
-    (
-      ((A = C) & (gz = gx))
-    | ((A = T) & (gz = gy))
-    ) &
+  (Ex kid #i.
+    RevDH(T, kid, gy)@i &
     #i < #j)"
 
 
