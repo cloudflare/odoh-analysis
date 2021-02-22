@@ -19,6 +19,7 @@ equations: decrypt(aead(k, p, a), k) = p
 /* The authentication can be checked with the key and AAD */
 equations: aead_verify(aead(k, p, a), a, k) = true
 
+/* The starter rule establishes an authentic shared key between two actors, and produces the KeyExI fact, which the attacker can use to compromise said key. */
 rule Starter:
   [ Fr(~kxy) ]
 --[ Channel($X, $Y) ]->
@@ -27,6 +28,7 @@ rule Starter:
   , KeyExI($X, $Y, ~kxy)
   ]
 
+/* The Generate_DH_key_pair rule simulates the PKI necessary for distributing the target's keys. In the case of ODoH this is done in DNS itself. */
 rule Generate_DH_key_pair:
   [ Fr(~x)
   , Fr(~key_id)
@@ -37,11 +39,14 @@ rule Generate_DH_key_pair:
   , !Ltk($A,~key_id, ~x)
   ]
 
+/* The C_QueryGeneration rule simulates the Client establishing a connection to the proxy and sending a query.
+It consumes a key from the starter, allowing it to communicate with proxy securely. */
 rule C_QueryGeneration:
 let
   gx = 'g'^~x
   kem_context = <gx, gy>
   dh = gy^~x
+/* The ExtractAndExpand rules are provided in crypto.m4i. */
   shared_secret = ExtractAndExpand(dh, kem_context)
   response_secret = ExtractAndExpand(shared_secret, 'odoh_response')
   key_id = ~key_id
@@ -53,17 +58,24 @@ in
   , !Pk($T, ~key_id, gy)
   , Fr(~x)
   , Fr(~msg_id)
+// The connection_id is used to uniquely identify a connection between the Client and the Proxy. 
+// By sending it encrypted only with the connection key we are able to easily determine whether the attacker can decrypt the connection between the Client and the Proxy by checking if it can discover this value.
   , Fr(~connection_id)
   , Fr(~q)
   ]
---[ Neq($P, $T)
+--[ Neq($P, $T) // We require the proxy and the target to be distinct.
+  // This action tells Tamarin the ultimate source of message ids, client key shares, and encrypted queries.
   , CQE_sources( ~msg_id, gx, ODoHEBody )
+  // This action uniquely specifies a client making a query.
   , CQE($C, $P, $T, ~connection_id, ~q, ~msg_id, gx, gy, ~k)
   ]->
   [ Out(senc(<~connection_id, $T, ODoHQuery>, ~k))
+  // This Fact stores the client's state.
   , C_ResponseHandler(query, $C, gx,  $P, ~k,  $T, gy, response_secret, ~msg_id)
   ]
 
+/* The P_HandleQuery rule simulates a proxy receiving a query, and forwarding it to the target.
+It consumes the key from the starter rule, binding the client and proxy together. */
 rule P_HandleQuery:
 let
   expected_msg_type = '0x01'
@@ -71,12 +83,18 @@ in
   [ KeyExS($C, $P, ~k)
   , In(senc(<~connection_id, $T, <ODoHHeader, <gx, opaque_message>>>, ~k))
   , Fr(~ptid)
+// The Proxy takes the key id from the attacker. 
+// Although this makes the attacker strictly more powerful, and thus doesn't compromise our results, the goal is not a security property.
+// It simply makes the model more efficient.
   , In(key_id)
   ]
---[ PHQ(msg_id, gx, opaque_message)
+--[ PHQ(msg_id, gx, opaque_message) // This action uniquely specifies the proxy receiving and forwarding the query.
+// The proxy will only accept messages with type '0x01', i.e. queries.
+// It rejects responses on this interface.
   , Eq(msg_type, expected_msg_type)
   ]->
   [Out(<$T, <ODoHHeader, <gx, opaque_message>>>)
+// This Fact stores the Proxy's state.
   , P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
   ]
 
@@ -97,10 +115,15 @@ in
   [ In(<$T, ODoHQuery>)
   , !Ltk($T, ~key_id, ~y)
   , Fr(~ttid)
+// The attacker is allowed to choose the response.
+// We allow this because it means we do not need to consider the security of the connection between the recursive resolver and the authorative resolver.
   , In(r)
   ]
---[ Eq(msg_type, expected_msg_type)
+--[ Eq(msg_type, expected_msg_type) // The Target only accepts queries.
+  // This action requires the message to correctly decrypt.
+  // In practice this is already in forced by the pattern matching of the input rule, but we leave this action as a signal of the requirement.
   , Eq(aead_verify(ODoHEBody, <L, key_id, '0x01'>, shared_secret), true)
+  // This action uniquely specifies the Target completing the protcol.
   , T_Done(~ttid, msg_id)
   , T_Answer($T, query, answer)
   ]->
@@ -110,10 +133,11 @@ rule P_HandleResponse:
 let
   expected_msg_type = '0x02'
 in
-  [ P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
+  [ P_ResponseHandler(~ptid, $C, $P, ~k, msg_id) // The proxy consumes its previous state.
   , In(<ODoHHeader, opaque_message>)
   ]
---[ P_Done(~ptid, msg_id)
+--[ P_Done(~ptid, msg_id) // This actions uniquely specifies the Proxy completing the protocol.
+  // The Proxy will only accept responses on this interface.
   , Eq(msg_type, expected_msg_type)
   ]->
   [ Out(senc(<ODoHHeader, opaque_message>, ~k)) ]
@@ -124,19 +148,25 @@ let
   psk = response_secret
   msg_id = ~msg_id
 in
-  [ C_ResponseHandler(~query, $C, gx, $P, ~k,  $T, gy, response_secret, ~msg_id)
+  [ C_ResponseHandler(~query, $C, gx, $P, ~k,  $T, gy, response_secret, ~msg_id) // The client consumes its previous state.
   , In(senc(ODoHResponse, ~k)) ]
---[ Eq(msg_type, expected_msg_type)
+--[ Eq(msg_type, expected_msg_type) // The client only accepts responses on this interface.
+  // This action requires the response to correctly decrypt.
+  // As with the Target this is already enforced by the pattern matching done on the input, but we leave it here as a signal of the requirement.
   , Eq(aead_verify(aead(psk, answer, <L, key_id, '0x02'>), <L, key_id, '0x02'>, psk), true)
+  // This action uniquely specifies the Client completing the protcol.
   , C_Done(~query, answer, $C, gx,  $T, gy)
   ]->
+  // Because this analysis only considers the ODoH protocol, and not reaction attacks, at this point we can drop all the client state.
   []
 
+// This rule allows the attacker perform the RevSk action to reveal a connection handshake key.
 rule RevSK:
   [ KeyExI($X, $Y, ~kxy) ]
 --[ RevSk(~kxy) ]->
   [ Out(~kxy) ]
 
+// This rule allows the attacker to perform the RevDH action to reveal a target's key share.
 rule RevDH:
   [ !Ltk($A,~key_id, ~x) ]
 --[ RevDH($A, ~key_id, 'g'^~x) ]->
