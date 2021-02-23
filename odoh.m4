@@ -8,16 +8,16 @@ theory ODoH begin
 
 builtins: diffie-hellman, hashing, symmetric-encryption, signing
 
-functions: Expand/3, Extract/2, hmac/1, aead/3, decrypt/2, aead_verify/3
+functions: Expand/3, Extract/2, hmac/1, aead/4, decrypt/3, aead_verify/4
 
 restriction Eq_check_succeed: "All x y #i. Eq(x,y) @ i ==> x = y"
 restriction Neq_check_succeed: "All x y #i. Neq(x,y) @ i ==> not (x = y)"
 
 
 /* The plaintext can be recovered with the key */
-equations: decrypt(aead(k, p, a), k) = p
+equations: decrypt(k, n, aead(k, n, a, p)) = p
 /* The authentication can be checked with the key and AAD */
-equations: aead_verify(aead(k, p, a), a, k) = true
+equations: aead_verify(k, n, a, aead(k, n, a, p)) = true
 
 /* The Starter rule establishes an authentic shared key between two actors, and produces the KeyExI Fact, which the attacker can use to compromise said key. */
 rule Starter:
@@ -48,10 +48,13 @@ let
   dh = gy^~x
 /* The ExtractAndExpand rules are provided in crypto.m4i. */
   shared_secret = ExtractAndExpand(dh, kem_context)
-  response_secret = ExtractAndExpand(shared_secret, 'odoh_response')
+  info_hash = Labeled_Extract('blank', 'info_hash', 'odoh_query')
+  nonce = KSNonce(shared_secret) 
   key_id = ~key_id
   msg_type='0x01'
   query = ~q
+  response_secret = DeriveSecretsK(shared_secret, query) 
+  response_nonce = DeriveSecretsN(shared_secret, query)
   msg_id = ~msg_id
 in
   [ KeyExC($C, $P, ~k)
@@ -72,7 +75,7 @@ in
   ]->
   [ Out(senc(<~connection_id, $T, ODoHQuery>, ~k))
   /* This Fact stores the client's state. */
-  , C_ResponseHandler(query, $C, gx,  $P, ~k,  $T, gy, response_secret, ~msg_id)
+  , C_ResponseHandler(query, $C, gx,  $P, ~k,  $T, gy, response_secret, response_nonce, ~msg_id)
   ]
 
 /* The P_HandleQuery rule simulates a proxy receiving a query, and forwarding it to the target.
@@ -107,11 +110,15 @@ let
   kem_context = <gx, gy>
   dh = gx^~y
   shared_secret = ExtractAndExpand(dh, kem_context)
-  response_secret = ExtractAndExpand(shared_secret, 'odoh_response')
+  info_hash = Labeled_Extract('blank', 'info_hash', 'odoh_query')
+  nonce = KSNonce(shared_secret) 
+  response_secret = DeriveSecretsK(shared_secret, query) 
+  response_nonce = DeriveSecretsN(shared_secret, query)
   expected_aad = <L, key_id, '0x01'>
   key_id = ~key_id
   msg_type2 = '0x02'
   psk = response_secret
+  nonce2 = response_nonce
   answer = r
 in
   [ In(<$T, ODoHQuery>)
@@ -125,7 +132,7 @@ in
     Eq(msg_type, expected_msg_type) 
   /* This action requires the message to correctly decrypt.
    In practice this is already in forced by the pattern matching of the input rule, but we leave this action as a signal of the requirement. */
-  , Eq(aead_verify(ODoHEBody, <L, key_id, '0x01'>, shared_secret), true)
+  , Eq(aead_verify(shared_secret, nonce, <'0x01', L, key_id>, ODoHEBody), true) 
   /* This action uniquely specifies the target completing the protcol. */
   , T_Done(~ttid, msg_id)
   , T_Answer($T, query, answer)
@@ -151,16 +158,17 @@ rule C_HandleResponse:
 let
   expected_msg_type = '0x02'
   psk = response_secret
+  nonce = response_nonce
   msg_id = ~msg_id
 in
   [ /* The client consumes its previous state. */
-    C_ResponseHandler(~query, $C, gx, $P, ~k,  $T, gy, response_secret, ~msg_id) 
+    C_ResponseHandler(~query, $C, gx, $P, ~k,  $T, gy, response_secret, response_nonce, ~msg_id) 
   , In(senc(ODoHResponse, ~k)) ]
 --[ /* The client only accepts responses on this interface. */
     Eq(msg_type, expected_msg_type) 
   /* This action requires the response to correctly decrypt.
    As with the target this is already enforced by the pattern matching done on the input, but we leave it here as a signal of the requirement. */
-  , Eq(aead_verify(aead(psk, answer, <L, key_id, '0x02'>), <L, key_id, '0x02'>, psk), true)
+  , Eq(aead_verify(psk, nonce, <L, key_id, '0x02'>, ODoHResponseBody), true)
   /* This action uniquely specifies the client completing the protcol. */
   , C_Done(~query, answer, $C, gx,  $T, gy)
   ]->
@@ -189,6 +197,14 @@ lemma PHQ_source[sources]:
 lemma end_to_end:
   exists-trace
   "Ex q a  C gx T gy #i. C_Done(q, a, C, gx, T, gy)@i"
+
+lemma t_done:
+  exists-trace
+  "Ex ttid msg_id #i. T_Done(ttid, msg_id)@i"
+
+lemma p_done:
+  exists-trace
+  "Ex ptid msg_id #i. P_Done(ptid, msg_id)@i"
 
 /* This lemma states that if the attacker learns the query then it must have previously compromised the target. */
 lemma secret_query:
