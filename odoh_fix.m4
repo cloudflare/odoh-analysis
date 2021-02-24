@@ -110,9 +110,9 @@ let
   shared_secret = ExtractAndExpand(dh, kem_context)
   info_hash = Labeled_Extract('blank', 'info_hash', 'odoh_query')
   nonce = KSNonce(shared_secret) 
-  key_id2 = '0x0000'
-  response_secret = DeriveSecretsK(shared_secret, query) 
-  response_nonce = DeriveSecretsN(shared_secret, query)
+  key_id2 = ~key_id2 
+  response_secret = DeriveSecretsK(shared_secret, (<query, key_id2>))
+  response_nonce = DeriveSecretsN(shared_secret, (<query, key_id2>))
   expected_aad = <L, key_id, '0x01'>
   key_id = ~key_id
   msg_type2 = '0x02'
@@ -126,6 +126,7 @@ in
   /* The attacker is allowed to choose the response.
    We allow this because it means we do not need to consider the security of the connection between the recursive resolver and the authorative resolver. */
   , Fr(~r)
+  , Fr(~key_id2)
   ]
 --[ /* The target only accepts queries. */
     Eq(msg_type, expected_msg_type) 
@@ -156,8 +157,8 @@ in
 rule C_HandleResponse:
 let
   expected_msg_type = '0x02'
-  response_secret = DeriveSecretsK(shared_secret, query) 
-  response_nonce = DeriveSecretsN(shared_secret, query)
+  response_secret = DeriveSecretsK(shared_secret, (<~query, key_id>))
+  response_nonce = DeriveSecretsN(shared_secret, (<~query, key_id>))
   psk = response_secret
   nonce = response_nonce
   msg_id = ~msg_id

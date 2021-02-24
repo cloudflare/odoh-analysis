@@ -2,7 +2,7 @@
 	m4 $< > $@
 
 .PHONY: all
-all: odoh.spthy
+all: odoh.spthy odoh_fix.spthy
 
 .PHONY: proofs
 proofs:
