@@ -189,10 +189,25 @@ rule RevDH:
 --[ RevDH($A, ~key_id, 'g'^~x) ]->
   [ Out(~x) ]
 
+rule NonceReuse:
+  [ In(aead(k, n, a1, p1))
+  , In(aead(k, n, a2, p2))
+  ]
+--[ Neq(p1, p2)
+  , ReuseNonce(k, n, p1, p2) ]->
+  [ Out(p1) ]
+
 /* This lemma is used by Tamarin's preprocessor to refine the outputs of the P_HandleQuery rule. 
  It can understood as "Either the inputs to the P_HandleQuery rule are from an honest client, or the attacker knew them before the rule was triggered." */
 lemma PHQ_source[sources]:
   "All mid gx op #j. PHQ(mid, gx, op)@j ==> (Ex #i. CQE_sources(mid, gx, op)@i & #i < #j) | ((Ex #i. KU(mid)@i & #i < #j) & (Ex #i. KU(gx)@i & #i < #j) & (Ex #i. KU(op)@i & #i < #j))"
+
+lemma aead_source[sources]:
+  "All k n a p #j. KU(aead(k,n,a,p))@j
+==>
+  (Ex #i. KU(p)@i & #i < #j) |
+  (Ex T q #i. T_Answer(T, q, p)@i & #i < #j) |
+  (Ex C P T cid msg_id gx gy key #i. CQE(C, P, T, cid, p, msg_id, gx, gy, key)@i & #i < #j)"
 
 /* This lemma is an existance lemma, and checks that it is possible for the protocol to complete.
  This reduces the risk that the model is satisfied trivially, because some bug renders it unable to run. */
