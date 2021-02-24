@@ -170,7 +170,7 @@ in
     Eq(msg_type, expected_msg_type) 
   /* This action requires the response to correctly decrypt.
    As with the target this is already enforced by the pattern matching done on the input, but we leave it here as a signal of the requirement. */
-  //, Eq(aead_verify(psk, nonce, <'0x02', L, '0x0000'>, ODoHResponseBody), true)
+  , Eq(aead_verify(psk, nonce, <'0x02', '0x0000'>, ODoHResponseBody), true)
   /* This action uniquely specifies the client completing the protcol. */
   , C_Done(~query, answer, $C, gx,  $T, gy)
   ]->
