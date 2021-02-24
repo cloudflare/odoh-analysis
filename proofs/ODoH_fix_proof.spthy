@@ -1,4 +1,4 @@
-theory ODoH begin
+theory ODoH_Fix begin
 
 // Function signature and definition of the equational theory E
 
@@ -213,7 +213,7 @@ rule (modulo E) T_HandleQuery:
                        <'0x01', '32', ~key_id>, query)),
       true
   ),
-  T_Done( ~ttid, msg_id ), T_Answer( $T, 'g'^~y, query, ~r )
+  T_Done( ~ttid, msg_id ), T_Answer( $T, gx, 'g'^~y, query, ~r )
   ]->
    [
    Out( <msg_id, '0x02', ~key_id2, 
@@ -267,7 +267,7 @@ rule (modulo E) T_HandleQuery:
      ]
     --[
     Eq( msg_type, '0x01' ), Eq( true, true ), T_Done( ~ttid, msg_id ),
-    T_Answer( $T, 'g'^~y, query, ~r )
+    T_Answer( $T, gx, 'g'^~y, query, ~r )
     ]->
      [
      Out( <msg_id, '0x02', ~key_id2, 
@@ -473,7 +473,7 @@ lemma aead_source [sources]:
   "∀ k n a p #j.
     (!KU( aead(k, n, a, p) ) @ #j) ⇒
     (((∃ #i. (!KU( p ) @ #i) ∧ (#i < #j)) ∨
-      (∃ T gy q #i. (T_Answer( T, gy, q, p ) @ #i) ∧ (#i < #j))) ∨
+      (∃ T gx gy q #i. (T_Answer( T, gx, gy, q, p ) @ #i) ∧ (#i < #j))) ∨
      (∃ C P T cid msg_id gx gy key #i.
        (CQE( C, P, T, cid, p, msg_id, gx, gy, key ) @ #i) ∧ (#i < #j)))"
 /*
@@ -482,7 +482,7 @@ guarded formula characterizing all counter-examples:
   (!KU( aead(k, n, a, p) ) @ #j)
  ∧
   (∀ #i. (!KU( p ) @ #i) ⇒ ¬(#i < #j)) ∧
-  (∀ T gy q #i. (T_Answer( T, gy, q, p ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ T gx gy q #i. (T_Answer( T, gx, gy, q, p ) @ #i) ⇒ ¬(#i < #j)) ∧
   (∀ C P T cid msg_id gx gy key #i.
     (CQE( C, P, T, cid, p, msg_id, gx, gy, key ) @ #i) ⇒ ¬(#i < #j))"
 */
@@ -877,14 +877,14 @@ qed
 
 lemma secret_response:
   all-traces
-  "∀ T gy q a #j #k.
-    ((T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
+  "∀ T gx gy q a #j #k.
+    ((T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
     ((∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k)) ∨
      (∃ #i. (!KU( q ) @ #i) ∧ (#i < #k)))"
 /*
 guarded formula characterizing all counter-examples:
-"∃ T gy q a #j #k.
-  (T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
+"∃ T gx gy q a #j #k.
+  (T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
  ∧
   (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)) ∧
   (∀ #i. (!KU( q ) @ #i) ⇒ ¬(#i < #k))"
@@ -1400,15 +1400,15 @@ qed
 
 lemma secret_response_nr:
   all-traces
-  "∀ T q gy a #j #k.
-    ((T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
+  "∀ T q gx gy a #j #k.
+    ((T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
     (((∃ k.1 n p #i. (ReuseNonce( k.1, n, a, p ) @ #i) ∧ (#i < #k)) ∨
       (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k))) ∨
      (∃ #i. (!KU( q ) @ #i) ∧ (#i < #k)))"
 /*
 guarded formula characterizing all counter-examples:
-"∃ T q gy a #j #k.
-  (T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
+"∃ T q gx gy a #j #k.
+  (T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
  ∧
   (∀ k.1 n p #i. (ReuseNonce( k.1, n, a, p ) @ #i) ⇒ ¬(#i < #k)) ∧
   (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)) ∧
@@ -1710,14 +1710,14 @@ lemma consistency:
   all-traces
   "∀ q a C gx T gy #j.
     (C_Done( q, a, C, gx, T, gy ) @ #j) ⇒
-    ((∃ #i. (T_Answer( T, gy, q, a ) @ #i) ∧ (#i < #j)) ∨
+    ((∃ #i. (T_Answer( T, gx, gy, q, a ) @ #i) ∧ (#i < #j)) ∨
      (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #j)))"
 /*
 guarded formula characterizing all counter-examples:
 "∃ q a C gx T gy #j.
   (C_Done( q, a, C, gx, T, gy ) @ #j)
  ∧
-  (∀ #i. (T_Answer( T, gy, q, a ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ #i. (T_Answer( T, gx, gy, q, a ) @ #i) ⇒ ¬(#i < #j)) ∧
   (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #j))"
 */
 simplify

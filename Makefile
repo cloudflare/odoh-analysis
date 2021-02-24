@@ -6,4 +6,4 @@ all: odoh.spthy odoh_fix.spthy
 
 .PHONY: proofs
 proofs:
-	tamarin-prover proofs/ODoH_proof.spthy
+	tamarin-prover proofs/*

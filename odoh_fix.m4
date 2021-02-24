@@ -4,7 +4,7 @@ changecom(<!/*!>,<!*/!>)
 include(msgs.m4i)
 include(crypto.m4i)
 
-theory ODoH begin
+theory ODoH_Fix begin
 
 builtins: diffie-hellman, hashing, symmetric-encryption, signing
 
@@ -49,6 +49,7 @@ let
 /* The ExtractAndExpand rules are provided in crypto.m4i. */
   shared_secret = ExtractAndExpand(dh, kem_context)
   info_hash = Labeled_Extract('blank', 'info_hash', 'odoh_query')
+/* KSNonce is defined in crypto.m4i. */
   nonce = KSNonce(shared_secret) 
   key_id = ~key_id
   msg_type='0x01'
@@ -101,6 +102,7 @@ in
   , P_ResponseHandler(~ptid, $C, $P, ~k, msg_id)
   ]
 
+/* The T_HandleQuery simulates the target receiving a query and responding. */
 rule T_HandleQuery:
 let
   expected_msg_type = '0x01'
@@ -111,6 +113,7 @@ let
   info_hash = Labeled_Extract('blank', 'info_hash', 'odoh_query')
   nonce = KSNonce(shared_secret) 
   key_id2 = ~key_id2 
+/* response_secret and response_nonce are defined in crypto.m4i */ 
   response_secret = DeriveSecretsK(shared_secret, (<query, key_id2>))
   response_nonce = DeriveSecretsN(shared_secret, (<query, key_id2>))
   expected_aad = <L, key_id, '0x01'>
@@ -123,8 +126,6 @@ in
   [ In(<$T, ODoHQuery>)
   , !Ltk($T, ~key_id, ~y)
   , Fr(~ttid)
-  /* The attacker is allowed to choose the response.
-   We allow this because it means we do not need to consider the security of the connection between the recursive resolver and the authorative resolver. */
   , Fr(~r)
   , Fr(~key_id2)
   ]
@@ -135,10 +136,11 @@ in
   , Eq(aead_verify(shared_secret, nonce, <'0x01', L, key_id>, ODoHEBody), true) 
   /* This action uniquely specifies the target completing the protcol. */
   , T_Done(~ttid, msg_id)
-  , T_Answer($T, gy, query, answer)
+  , T_Answer($T, gx, gy, query, answer)
   ]->
   [ Out(ODoHResponse2) ]
 
+/* This rule simulates a proxy receiving a response, and forwarding it to the client. */
 rule P_HandleResponse:
 let
   expected_msg_type = '0x02'
@@ -154,6 +156,7 @@ in
   ]->
   [ Out(senc(<ODoHHeader, opaque_message>, ~k)) ]
 
+/* This rule simulates a client handling a response. */
 rule C_HandleResponse:
 let
   expected_msg_type = '0x02'
@@ -189,6 +192,8 @@ rule RevDH:
 --[ RevDH($A, ~key_id, 'g'^~x) ]->
   [ Out(~x) ]
 
+/* This rule allows an attacker to inject two AEAD encrypted blobs with the same key and nonce, but different plaintexts, and receive the plaintext of the left blob. 
+This is more powerful than the reality of such an attack, and thus if the protocol is secure against this more powerful attacker then we can be sure it is secure against a more realistic attacker. */
 rule NonceReuse:
   [ In(aead(k, n, a1, p1))
   , In(aead(k, n, a2, p2))
@@ -202,11 +207,13 @@ rule NonceReuse:
 lemma PHQ_source[sources]:
   "All mid gx op #j. PHQ(mid, gx, op)@j ==> (Ex #i. CQE_sources(mid, gx, op)@i & #i < #j) | ((Ex #i. KU(mid)@i & #i < #j) & (Ex #i. KU(gx)@i & #i < #j) & (Ex #i. KU(op)@i & #i < #j))"
 
+/* This lemma is used by Tamarin's preprocessor to refine sources of AEADs.
+ It can be understood as "Either the attacker knows the plaintext of the AEAD, or it was generated honestly by either the target or the client." */
 lemma aead_source[sources]:
   "All k n a p #j. KU(aead(k,n,a,p))@j
 ==>
   (Ex #i. KU(p)@i & #i < #j) |
-  (Ex T gy q #i. T_Answer(T, gy, q, p)@i & #i < #j) |
+  (Ex T gx gy q #i. T_Answer(T, gx, gy, q, p)@i & #i < #j) |
   (Ex C P T cid msg_id gx gy key #i. CQE(C, P, T, cid, p, msg_id, gx, gy, key)@i & #i < #j)"
 
 /* This lemma is an existance lemma, and checks that it is possible for the protocol to complete.
@@ -225,16 +232,18 @@ lemma secret_query:
     RevDH(T, kid, gy)@i &
     #i < #k"
 
+/* This lemma states that if the attacker learns the response, then either it compromised the target or it knew the query in advance. This lemma does _not_ hold. */
 lemma secret_response:
-  "All T gy q a #j #k. T_Answer(T, gy, q, a)@j &
+  "All T gx gy q a #j #k. T_Answer(T, gx, gy, q, a)@j &
     KU(a)@k 
 ==>
   (Ex kid #i. RevDH(T, kid, gy)@i & #i<#k) |
   (Ex #i. KU(q)@i & #i < #k)"
 
-
+/* This lemma, similarly to the previous lemmas, states that if the attacker learns the response then it either compromised the target, knew the query in advance, or abused a nonce reuse. 
+This lets us be sure that the attack is not masking other, unrelated attacks. */
 lemma secret_response_nr:
-  "All T q gy a #j #k. T_Answer(T, gy, q, a)@j &
+  "All T q gx gy a #j #k. T_Answer(T, gx, gy, q, a)@j &
     KU(a)@k
 ==>
   (Ex k n p #i. ReuseNonce(k, n, a, p)@i & #i < #k) |
@@ -264,11 +273,11 @@ lemma query_binding:
     RevSk(key)@h &
     #h < #l"
 
-/* This lemma states that if the client and target both complete the protocol then either they agree on the target's identity, the query, and the answer or the attacker previously compromised the target. */
+/* This lemma states that if the client and target both complete the protocol then either they agree on the target's identity, the DH key shares, the query, and the answer or the attacker previously compromised the target. */
 lemma consistency:
   "All q a C gx T gy #j. C_Done(q, a, C, gx, T, gy)@j
 ==>
-  (Ex #i. T_Answer(T, gy, q, a)@i & #i < #j) |
+  (Ex #i. T_Answer(T, gx, gy, q, a)@i & #i < #j) |
   (Ex kid #i.
     RevDH(T, kid, gy)@i &
     #i < #j)"

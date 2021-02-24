@@ -81,36 +81,8 @@ rule (modulo E) C_QueryGeneration:
              ~k)
    ),
    C_ResponseHandler( ~q, $C, 'g'^~x, $P, ~k, $T, gy,
-                      Expand(Extract(~q,
-                                     Expand(Expand(Extract(Expand(Extract('blank',
-                                                                          <'HPKE_v1', 'eae_prk', 
-                                                                           gy^~x>),
-                                                                  <'32', 'HPKE_v1', 
-                                                                   'shared_secret', 'g'^~x, gy>,
-                                                                  '32'),
-                                                           <'HPKE_v1', 'secret', 'blank'>),
-                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                    Extract('blank',
-                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                   >,
-                                                   '32'),
-                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
-                             'odoh_key', '32'),
-                      Expand(Extract(~q,
-                                     Expand(Expand(Extract(Expand(Extract('blank',
-                                                                          <'HPKE_v1', 'eae_prk', 
-                                                                           gy^~x>),
-                                                                  <'32', 'HPKE_v1', 
-                                                                   'shared_secret', 'g'^~x, gy>,
-                                                                  '32'),
-                                                           <'HPKE_v1', 'secret', 'blank'>),
-                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                    Extract('blank',
-                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                   >,
-                                                   '32'),
-                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
-                             'odoh_nonce', '32'),
+                      Expand(Extract('blank', <'HPKE_v1', 'eae_prk', gy^~x>),
+                             <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
                       ~msg_id
    )
    ]
@@ -151,38 +123,8 @@ rule (modulo E) C_QueryGeneration:
                ~k)
      ),
      C_ResponseHandler( ~q, $C, 'g'^~x, $P, ~k, $T, gy,
-                        Expand(Extract(~q,
-                                       Expand(Expand(Extract(Expand(Extract('blank',
-                                                                            <'HPKE_v1', 'eae_prk', z
-                                                                            >),
-                                                                    <'32', 'HPKE_v1', 
-                                                                     'shared_secret', 'g'^~x, gy>,
-                                                                    '32'),
-                                                             <'HPKE_v1', 'secret', 'blank'>),
-                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                      Extract('blank',
-                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                              >)
-                                                     >,
-                                                     '32'),
-                                              <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
-                               'odoh_key', '32'),
-                        Expand(Extract(~q,
-                                       Expand(Expand(Extract(Expand(Extract('blank',
-                                                                            <'HPKE_v1', 'eae_prk', z
-                                                                            >),
-                                                                    <'32', 'HPKE_v1', 
-                                                                     'shared_secret', 'g'^~x, gy>,
-                                                                    '32'),
-                                                             <'HPKE_v1', 'secret', 'blank'>),
-                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                      Extract('blank',
-                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                              >)
-                                                     >,
-                                                     '32'),
-                                              <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
-                               'odoh_nonce', '32'),
+                        Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                               <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
                         ~msg_id
      )
      ]
@@ -195,21 +137,21 @@ rule (modulo E) C_QueryGeneration:
        gy    = z.32^inv(~x.25)
        z     = z.32
     
-    3. ~x    = ~x.385
-       gy    = x.759^x.760
-       z     = x.759^(~x.385*x.760)
+    3. ~x    = ~x.220
+       gy    = x.429^x.430
+       z     = x.429^(~x.220*x.430)
     
-    4. ~x    = ~x.386
-       gy    = x.761^inv((~x.386*x.762))
-       z     = x.761^inv(x.762)
+    4. ~x    = ~x.221
+       gy    = x.431^inv((~x.221*x.432))
+       z     = x.431^inv(x.432)
     
-    5. ~x    = ~x.386
-       gy    = x.761^(x.762*inv(~x.386))
-       z     = x.761^x.762
+    5. ~x    = ~x.221
+       gy    = x.431^(x.432*inv(~x.221))
+       z     = x.431^x.432
     
-    6. ~x    = ~x.387
-       gy    = x.762^(x.763*inv((~x.387*x.764)))
-       z     = x.762^(x.763*inv(x.764))
+    6. ~x    = ~x.222
+       gy    = x.432^(x.433*inv((~x.222*x.434)))
+       z     = x.432^(x.433*inv(x.434))
   */
 
 rule (modulo E) P_HandleQuery:
@@ -271,7 +213,7 @@ rule (modulo E) T_HandleQuery:
                        <'0x01', '32', ~key_id>, query)),
       true
   ),
-  T_Done( ~ttid, msg_id ), T_Answer( $T, 'g'^~y, query, ~r )
+  T_Done( ~ttid, msg_id ), T_Answer( $T, gx, 'g'^~y, query, ~r )
   ]->
    [
    Out( <msg_id, '0x02', '0x0000', 
@@ -325,7 +267,7 @@ rule (modulo E) T_HandleQuery:
      ]
     --[
     Eq( msg_type, '0x01' ), Eq( true, true ), T_Done( ~ttid, msg_id ),
-    T_Answer( $T, 'g'^~y, query, ~r )
+    T_Answer( $T, gx, 'g'^~y, query, ~r )
     ]->
      [
      Out( <msg_id, '0x02', '0x0000', 
@@ -399,19 +341,57 @@ rule (modulo E) P_HandleResponse:
 
 rule (modulo E) C_HandleResponse:
    [
-   C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy, response_secret,
-                      response_nonce, ~msg_id
+   C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy, shared_secret,
+                      ~msg_id
    ),
-   In( senc(<~msg_id, msg_type, '0x0000', 
-             aead(response_secret, response_nonce, <'0x02', '0x0000'>, answer)>,
+   In( senc(<~msg_id, msg_type, key_id, 
+             aead(Expand(Extract(~query,
+                                 Expand(Expand(Extract(shared_secret,
+                                                       <'HPKE_v1', 'secret', 'blank'>),
+                                               <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
+                                        <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                         'odoh_key', '32'),
+                  Expand(Extract(~query,
+                                 Expand(Expand(Extract(shared_secret,
+                                                       <'HPKE_v1', 'secret', 'blank'>),
+                                               <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
+                                        <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                         'odoh_nonce', '32'),
+                  <'0x02', key_id>, answer)
+            >,
             ~k)
    )
    ]
   --[
   Eq( msg_type, '0x02' ),
-  Eq( aead_verify(response_secret, response_nonce,
-                  <'0x02', '0x0000'>,
-                  aead(response_secret, response_nonce, <'0x02', '0x0000'>, answer)),
+  Eq( aead_verify(Expand(Extract(~query,
+                                 Expand(Expand(Extract(shared_secret,
+                                                       <'HPKE_v1', 'secret', 'blank'>),
+                                               <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
+                                        <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                         'odoh_key', '32'),
+                  Expand(Extract(~query,
+                                 Expand(Expand(Extract(shared_secret,
+                                                       <'HPKE_v1', 'secret', 'blank'>),
+                                               <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
+                                        <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                         'odoh_nonce', '32'),
+                  <'0x02', key_id>,
+                  aead(Expand(Extract(~query,
+                                      Expand(Expand(Extract(shared_secret,
+                                                            <'HPKE_v1', 'secret', 'blank'>),
+                                                    <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
+                                                    '32'),
+                                             <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                              'odoh_key', '32'),
+                       Expand(Extract(~query,
+                                      Expand(Expand(Extract(shared_secret,
+                                                            <'HPKE_v1', 'secret', 'blank'>),
+                                                    <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
+                                                    '32'),
+                                             <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                              'odoh_nonce', '32'),
+                       <'0x02', key_id>, answer)),
       true
   ),
   C_Done( ~query, answer, $C, gx, $T, gy )
@@ -421,11 +401,24 @@ rule (modulo E) C_HandleResponse:
   /*
   rule (modulo AC) C_HandleResponse:
      [
-     C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy, response_secret,
-                        response_nonce, ~msg_id
+     C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy, shared_secret,
+                        ~msg_id
      ),
-     In( senc(<~msg_id, msg_type, '0x0000', 
-               aead(response_secret, response_nonce, <'0x02', '0x0000'>, answer)>,
+     In( senc(<~msg_id, msg_type, key_id, 
+               aead(Expand(Extract(~query,
+                                   Expand(Expand(Extract(shared_secret,
+                                                         <'HPKE_v1', 'secret', 'blank'>),
+                                                 <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
+                                          <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                           'odoh_key', '32'),
+                    Expand(Extract(~query,
+                                   Expand(Expand(Extract(shared_secret,
+                                                         <'HPKE_v1', 'secret', 'blank'>),
+                                                 <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
+                                          <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                           'odoh_nonce', '32'),
+                    <'0x02', key_id>, answer)
+              >,
               ~k)
      )
      ]
@@ -480,7 +473,7 @@ lemma aead_source [sources]:
   "∀ k n a p #j.
     (!KU( aead(k, n, a, p) ) @ #j) ⇒
     (((∃ #i. (!KU( p ) @ #i) ∧ (#i < #j)) ∨
-      (∃ T gy q #i. (T_Answer( T, gy, q, p ) @ #i) ∧ (#i < #j))) ∨
+      (∃ T gx gy q #i. (T_Answer( T, gx, gy, q, p ) @ #i) ∧ (#i < #j))) ∨
      (∃ C P T cid msg_id gx gy key #i.
        (CQE( C, P, T, cid, p, msg_id, gx, gy, key ) @ #i) ∧ (#i < #j)))"
 /*
@@ -489,7 +482,7 @@ guarded formula characterizing all counter-examples:
   (!KU( aead(k, n, a, p) ) @ #j)
  ∧
   (∀ #i. (!KU( p ) @ #i) ⇒ ¬(#i < #j)) ∧
-  (∀ T gy q #i. (T_Answer( T, gy, q, p ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ T gx gy q #i. (T_Answer( T, gx, gy, q, p ) @ #i) ⇒ ¬(#i < #j)) ∧
   (∀ C P T cid msg_id gx gy key #i.
     (CQE( C, P, T, cid, p, msg_id, gx, gy, key ) @ #i) ⇒ ¬(#i < #j))"
 */
@@ -504,10 +497,10 @@ guarded formula characterizing all satisfying traces:
 */
 simplify
 solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
-                          response_secret, response_nonce, ~msg_id
+                          shared_secret, ~msg_id
        ) ▶₀ #i )
   case C_QueryGeneration
-  solve( !KU( senc(<~msg_id, '0x02', '0x0000', 
+  solve( !KU( senc(<~msg_id, '0x02', key_id, 
                     aead(Expand(Extract(~query,
                                         Expand(Expand(Extract(Expand(Extract('blank',
                                                                              <'HPKE_v1', 'eae_prk', 
@@ -517,11 +510,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_key', '32'),
@@ -534,15 +523,11 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_nonce', '32'),
-                         <'0x02', '0x0000'>, a)
+                         <'0x02', key_id>, a)
                    >,
                    ~k)
          ) @ #vk )
@@ -555,10 +540,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                   'g'^~x, 'g'^~x.1>,
                                                                  '32'),
                                                           <'HPKE_v1', 'secret', 'blank'>),
-                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                   Extract('blank',
-                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                  >,
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                   '32'),
                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                             'odoh_key', '32'),
@@ -570,14 +552,11 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                   'g'^~x, 'g'^~x.1>,
                                                                  '32'),
                                                           <'HPKE_v1', 'secret', 'blank'>),
-                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                   Extract('blank',
-                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                  >,
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                   '32'),
                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                             'odoh_nonce', '32'),
-                     <'0x02', '0x0000'>, a)
+                     <'0x02', key_id>, a)
            ) @ #vk.7 )
       case T_HandleQuery
       solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
@@ -660,16 +639,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                     case P_HandleQuery
                     SOLVED // trace found
                   qed
-                next
-                  case P_HandleResponse
-                  by contradiction /* cyclic */
-                next
-                  case c_senc
-                  by contradiction /* cyclic */
                 qed
-              next
-                case c_exp
-                by sorry
               qed
             qed
           next
@@ -899,139 +869,145 @@ qed
 
 lemma secret_response:
   all-traces
-  "∀ T gy q a #j #k.
-    ((T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
-    (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k))"
+  "∀ T gx gy q a #j #k.
+    ((T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
+    ((∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k)) ∨
+     (∃ #i. (!KU( q ) @ #i) ∧ (#i < #k)))"
 /*
 guarded formula characterizing all counter-examples:
-"∃ T gy q a #j #k.
-  (T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
+"∃ T gx gy q a #j #k.
+  (T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
  ∧
-  ∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)"
+  (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)) ∧
+  (∀ #i. (!KU( q ) @ #i) ⇒ ¬(#i < #k))"
 */
 simplify
 solve( !Ltk( $T, ~key_id, ~y ) ▶₁ #j )
   case Generate_DH_key_pair
-  solve( !KU( ~r ) @ #k )
-    case NonceReuse
-    solve( !KU( aead(Expand(Extract('blank',
-                                    <'HPKE_v1', 'eae_prk', z>),
-                            <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
-                     Expand(Extract(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
-                                           <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
-                                    <'HPKE_v1', 'secret', 'blank'>),
-                            <'32', 'HPKE_v1', 'base_nonce', '0x01', 
-                             Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                            '32'),
-                     <'0x01', '32', ~key_id>, q)
-           ) @ #vk.11 )
-      case C_QueryGeneration
-      by sorry /* removed */
-    next
-      case P_HandleQuery
-      solve( !KU( aead(k.1, n, a1, ~r) ) @ #vk.1 )
-        case T_HandleQuery
-        solve( !KU( aead(Expand(Extract(~q,
-                                        Expand(Expand(Extract(Expand(Extract('blank',
-                                                                             <'HPKE_v1', 'eae_prk', 
-                                                                              'g'^(~x*~y)>),
-                                                                     <'32', 'HPKE_v1', 
-                                                                      'shared_secret', 'g'^~x, 
-                                                                      'g'^~y>,
-                                                                     '32'),
-                                                              <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
-                                                      '32'),
-                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
-                                'odoh_key', '32'),
-                         Expand(Extract(~q,
-                                        Expand(Expand(Extract(Expand(Extract('blank',
-                                                                             <'HPKE_v1', 'eae_prk', 
-                                                                              'g'^(~x*~y)>),
-                                                                     <'32', 'HPKE_v1', 
-                                                                      'shared_secret', 'g'^~x, 
-                                                                      'g'^~y>,
-                                                                     '32'),
-                                                              <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
-                                                      '32'),
-                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
-                                'odoh_nonce', '32'),
-                         a2, p2)
-               ) @ #vk.12 )
+  solve( !KU( ~key_id ) @ #vk.7 )
+    case C_QueryGeneration
+    by sorry
+  next
+    case Generate_DH_key_pair
+    solve( !KU( ~r ) @ #k )
+      case NonceReuse
+      solve( !KU( aead(Expand(Extract('blank',
+                                      <'HPKE_v1', 'eae_prk', z>),
+                              <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                       Expand(Extract(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                                             <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                                      <'HPKE_v1', 'secret', 'blank'>),
+                              <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                               Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                              '32'),
+                       <'0x01', '32', ~key_id>, q)
+             ) @ #vk.11 )
+        case C_QueryGeneration
+        by sorry
+      next
+        case P_HandleQuery
+        solve( !KU( aead(k.1, n, a1, ~r) ) @ #vk.2 )
           case T_HandleQuery
-          solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
-                            key_id.1, 'g'^~x, 
-                            aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~y)>),
-                                        <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~y>, '32'),
-                                 Expand(Extract(Expand(Extract('blank',
-                                                               <'HPKE_v1', 'eae_prk', 'g'^(~x*~y)>),
-                                                       <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
-                                                        'g'^~y>,
-                                                       '32'),
-                                                <'HPKE_v1', 'secret', 'blank'>),
-                                        <'32', 'HPKE_v1', 'base_nonce', '0x01', 
-                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                        '32'),
-                                 <'0x01', '32', ~key_id>, ~q)
-                           >,
-                           ~k.2)
-                 ) @ #vk.15 )
-            case C_QueryGeneration
-            solve( !KU( ~key_id ) @ #vk.14 )
+          solve( !KU( aead(Expand(Extract(~q,
+                                          Expand(Expand(Extract(Expand(Extract('blank',
+                                                                               <'HPKE_v1', 
+                                                                                'eae_prk', 
+                                                                                'g'^(~x*~y)>),
+                                                                       <'32', 'HPKE_v1', 
+                                                                        'shared_secret', 'g'^~x, 
+                                                                        'g'^~y>,
+                                                                       '32'),
+                                                                <'HPKE_v1', 'secret', 'blank'>),
+                                                        <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                         Extract('blank',
+                                                                 <'HPKE_v1', 'info_hash', 
+                                                                  'odoh_query'>)
+                                                        >,
+                                                        '32'),
+                                                 <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                  'odoh_key', '32'),
+                           Expand(Extract(~q,
+                                          Expand(Expand(Extract(Expand(Extract('blank',
+                                                                               <'HPKE_v1', 
+                                                                                'eae_prk', 
+                                                                                'g'^(~x*~y)>),
+                                                                       <'32', 'HPKE_v1', 
+                                                                        'shared_secret', 'g'^~x, 
+                                                                        'g'^~y>,
+                                                                       '32'),
+                                                                <'HPKE_v1', 'secret', 'blank'>),
+                                                        <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                         Extract('blank',
+                                                                 <'HPKE_v1', 'info_hash', 
+                                                                  'odoh_query'>)
+                                                        >,
+                                                        '32'),
+                                                 <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                  'odoh_nonce', '32'),
+                           a2, p2)
+                 ) @ #vk.12 )
+            case T_HandleQuery
+            solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
+                              key_id.1, 'g'^~x, 
+                              aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~y)>),
+                                          <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~y>, '32'),
+                                   Expand(Extract(Expand(Extract('blank',
+                                                                 <'HPKE_v1', 'eae_prk', 'g'^(~x*~y)
+                                                                 >),
+                                                         <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                          'g'^~y>,
+                                                         '32'),
+                                                  <'HPKE_v1', 'secret', 'blank'>),
+                                          <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                           Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                          >,
+                                          '32'),
+                                   <'0x01', '32', ~key_id>, ~q)
+                             >,
+                             ~k.2)
+                   ) @ #vk.15 )
               case C_QueryGeneration
-              by sorry
-            next
-              case Generate_DH_key_pair
               solve( !KU( 'g'^~x ) @ #vk.15 )
                 case P_HandleQuery
                 SOLVED // trace found
               qed
+            next
+              case P_HandleResponse
+              by contradiction /* cyclic */
+            next
+              case c_senc
+              by contradiction /* cyclic */
             qed
           next
-            case P_HandleResponse
-            by contradiction /* cyclic */
-          next
-            case c_senc
-            by contradiction /* cyclic */
+            case c_aead
+            by sorry
           qed
         next
           case c_aead
-          by sorry
+          by contradiction /* cyclic */
         qed
       next
         case c_aead
-        by contradiction /* cyclic */
+        by contradiction /* from formulas */
       qed
     next
-      case c_aead
-      by sorry
+      case T_HandleQuery
+      by contradiction /* from formulas */
     qed
-  next
-    case T_HandleQuery
-    by sorry
   qed
 qed
 
 lemma secret_response_nr:
   all-traces
-  "∀ T q gy a #j #k.
-    ((T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
+  "∀ T q gx gy a #j #k.
+    ((T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
     (((∃ k.1 n p #i. (ReuseNonce( k.1, n, a, p ) @ #i) ∧ (#i < #k)) ∨
       (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k))) ∨
      (∃ #i. (!KU( q ) @ #i) ∧ (#i < #k)))"
 /*
 guarded formula characterizing all counter-examples:
-"∃ T q gy a #j #k.
-  (T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
+"∃ T q gx gy a #j #k.
+  (T_Answer( T, gx, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
  ∧
   (∀ k.1 n p #i. (ReuseNonce( k.1, n, a, p ) @ #i) ⇒ ¬(#i < #k)) ∧
   (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)) ∧
@@ -1333,22 +1309,22 @@ lemma consistency:
   all-traces
   "∀ q a C gx T gy #j.
     (C_Done( q, a, C, gx, T, gy ) @ #j) ⇒
-    ((∃ #i. (T_Answer( T, gy, q, a ) @ #i) ∧ (#i < #j)) ∨
+    ((∃ #i. (T_Answer( T, gx, gy, q, a ) @ #i) ∧ (#i < #j)) ∨
      (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #j)))"
 /*
 guarded formula characterizing all counter-examples:
 "∃ q a C gx T gy #j.
   (C_Done( q, a, C, gx, T, gy ) @ #j)
  ∧
-  (∀ #i. (T_Answer( T, gy, q, a ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ #i. (T_Answer( T, gx, gy, q, a ) @ #i) ⇒ ¬(#i < #j)) ∧
   (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #j))"
 */
 simplify
 solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
-                          response_secret, response_nonce, ~msg_id
+                          shared_secret, ~msg_id
        ) ▶₀ #j )
   case C_QueryGeneration
-  solve( !KU( senc(<~msg_id, '0x02', '0x0000', 
+  solve( !KU( senc(<~msg_id, '0x02', key_id, 
                     aead(Expand(Extract(~query,
                                         Expand(Expand(Extract(Expand(Extract('blank',
                                                                              <'HPKE_v1', 'eae_prk', 
@@ -1358,11 +1334,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_key', '32'),
@@ -1375,15 +1347,11 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_nonce', '32'),
-                         <'0x02', '0x0000'>, a)
+                         <'0x02', key_id>, a)
                    >,
                    ~k)
          ) @ #vk )
@@ -1396,10 +1364,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                   'g'^~x, 'g'^~x.1>,
                                                                  '32'),
                                                           <'HPKE_v1', 'secret', 'blank'>),
-                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                   Extract('blank',
-                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                  >,
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                   '32'),
                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                             'odoh_key', '32'),
@@ -1411,14 +1376,11 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                   'g'^~x, 'g'^~x.1>,
                                                                  '32'),
                                                           <'HPKE_v1', 'secret', 'blank'>),
-                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                   Extract('blank',
-                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                  >,
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                   '32'),
                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                             'odoh_nonce', '32'),
-                     <'0x02', '0x0000'>, a)
+                     <'0x02', key_id>, a)
            ) @ #vk.7 )
       case T_HandleQuery
       by contradiction /* from formulas */
@@ -1432,11 +1394,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                'g'^~x, 'g'^~x.1>,
                                                               '32'),
                                                        <'HPKE_v1', 'secret', 'blank'>),
-                                               <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                Extract('blank',
-                                                        <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                               >,
-                                               '32'),
+                                               <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                         <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                          'odoh_key', '32')
              ) @ #vk.11 )
@@ -1449,11 +1407,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                  'g'^~x, 'g'^~x.1>,
                                                                 '32'),
                                                          <'HPKE_v1', 'secret', 'blank'>),
-                                                 <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                  Extract('blank',
-                                                          <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                 >,
-                                                 '32'),
+                                                 <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                           <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                            'odoh_nonce', '32')
                ) @ #vk.12 )
@@ -1466,11 +1420,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32'))
                  ) @ #vk.14 )
             case c_Extract
@@ -1485,10 +1435,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                           'g'^~x.1>,
                                                          '32'),
                                                   <'HPKE_v1', 'secret', 'blank'>),
-                                          <'32', 'HPKE_v1', 'exp', '0x01', 
-                                           Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                          >,
-                                          '32'),
+                                          <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                    <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                        ) @ #vk.28 )
                   case c_Expand
@@ -1498,23 +1445,21 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                      'g'^~x.1>,
                                                     '32'),
                                              <'HPKE_v1', 'secret', 'blank'>),
-                                     <'32', 'HPKE_v1', 'exp', '0x01', 
-                                      Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                     '32')
+                                     <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                          ) @ #vk.54 )
                     case c_Expand
-                    solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
+                    solve( !KU( 'g'^(~x*~x.1) ) @ #vk.50 )
                       case C_QueryGeneration
-                      solve( !KU( ~x.1 ) @ #vk.62 )
+                      solve( !KU( ~x.1 ) @ #vk.64 )
                         case RevDH
                         by contradiction /* from formulas */
                       qed
                     next
                       case Generate_DH_key_pair
-                      by solve( !KU( ~x ) @ #vk.62 )
+                      by solve( !KU( ~x ) @ #vk.64 )
                     next
                       case c_exp
-                      by solve( !KU( ~x ) @ #vk.64 )
+                      by solve( !KU( ~x ) @ #vk.66 )
                     qed
                   qed
                 qed
@@ -1528,9 +1473,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                         'g'^~x.1>,
                                                        '32'),
                                                 <'HPKE_v1', 'secret', 'blank'>),
-                                        <'32', 'HPKE_v1', 'exp', '0x01', 
-                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                        '32'),
+                                        <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                  <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                      ) @ #vk.20 )
                 case c_Expand
@@ -1540,9 +1483,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                    'g'^~x.1>,
                                                   '32'),
                                            <'HPKE_v1', 'secret', 'blank'>),
-                                   <'32', 'HPKE_v1', 'exp', '0x01', 
-                                    Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                   '32')
+                                   <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                        ) @ #vk.23 )
                   case c_Expand
                   solve( !KU( Extract(Expand(Extract('blank',
@@ -1596,9 +1537,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                         'g'^~x.1>,
                                                        '32'),
                                                 <'HPKE_v1', 'secret', 'blank'>),
-                                        <'32', 'HPKE_v1', 'exp', '0x01', 
-                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                        '32'),
+                                        <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                  <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                      ) @ #vk.26 )
                 case c_Expand
@@ -1608,23 +1547,21 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                    'g'^~x.1>,
                                                   '32'),
                                            <'HPKE_v1', 'secret', 'blank'>),
-                                   <'32', 'HPKE_v1', 'exp', '0x01', 
-                                    Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                   '32')
+                                   <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                        ) @ #vk.55 )
                   case c_Expand
-                  solve( !KU( 'g'^(~x*~x.1) ) @ #vk.52 )
+                  solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
                     case Generate_DH_key_pair
-                    by solve( !KU( ~x ) @ #vk.63 )
+                    by solve( !KU( ~x ) @ #vk.65 )
                   next
                     case P_HandleQuery
-                    solve( !KU( ~x.1 ) @ #vk.63 )
+                    solve( !KU( ~x.1 ) @ #vk.65 )
                       case RevDH
                       by contradiction /* from formulas */
                     qed
                   next
                     case c_exp
-                    by solve( !KU( ~x ) @ #vk.65 )
+                    by solve( !KU( ~x ) @ #vk.67 )
                   qed
                 qed
               qed
@@ -1648,11 +1585,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_key', '32'),
@@ -1665,15 +1598,11 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_nonce', '32'),
-                         <'0x02', '0x0000'>, a)
+                         <'0x02', key_id>, a)
                ) @ #vk.8 )
           case T_HandleQuery
           by contradiction /* from formulas */
@@ -1688,10 +1617,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                   >,
                                                                   '32'),
                                                            <'HPKE_v1', 'secret', 'blank'>),
-                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                    Extract('blank',
-                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                   >,
+                                                   <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                    '32'),
                                             <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                              'odoh_key', '32')
@@ -1706,11 +1632,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                      'g'^~x.1>,
                                                                     '32'),
                                                              <'HPKE_v1', 'secret', 'blank'>),
-                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                      Extract('blank',
-                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                              >)
-                                                     >,
+                                                     <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                      '32'),
                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                'odoh_nonce', '32')
@@ -1724,11 +1646,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                 'g'^~x, 'g'^~x.1>,
                                                                '32'),
                                                         <'HPKE_v1', 'secret', 'blank'>),
-                                                <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                 Extract('blank',
-                                                         <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                >,
-                                                '32'),
+                                                <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                          <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32'))
                      ) @ #vk.13 )
                 case c_Extract
@@ -1741,11 +1659,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                          ) @ #vk.25 )
                     case c_Expand
@@ -1756,23 +1670,21 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                        'g'^~x.1>,
                                                       '32'),
                                                <'HPKE_v1', 'secret', 'blank'>),
-                                       <'32', 'HPKE_v1', 'exp', '0x01', 
-                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                       '32')
+                                       <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                            ) @ #vk.52 )
                       case c_Expand
-                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.49 )
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.48 )
                         case C_QueryGeneration
-                        solve( !KU( ~x.1 ) @ #vk.60 )
+                        solve( !KU( ~x.1 ) @ #vk.62 )
                           case RevDH
                           by contradiction /* from formulas */
                         qed
                       next
                         case Generate_DH_key_pair
-                        by solve( !KU( ~x ) @ #vk.60 )
+                        by solve( !KU( ~x ) @ #vk.62 )
                       next
                         case c_exp
-                        by solve( !KU( ~x ) @ #vk.62 )
+                        by solve( !KU( ~x ) @ #vk.64 )
                       qed
                     qed
                   qed
@@ -1785,11 +1697,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                          ) @ #vk.19 )
                     case c_Expand
@@ -1800,9 +1708,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                        'g'^~x.1>,
                                                       '32'),
                                                <'HPKE_v1', 'secret', 'blank'>),
-                                       <'32', 'HPKE_v1', 'exp', '0x01', 
-                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                       '32')
+                                       <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                            ) @ #vk.22 )
                       case c_Expand
                       solve( !KU( Extract(Expand(Extract('blank',
@@ -1855,11 +1761,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                          ) @ #vk.25 )
                     case c_Expand
@@ -1870,23 +1772,21 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                        'g'^~x.1>,
                                                       '32'),
                                                <'HPKE_v1', 'secret', 'blank'>),
-                                       <'32', 'HPKE_v1', 'exp', '0x01', 
-                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                       '32')
+                                       <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                            ) @ #vk.54 )
                       case c_Expand
-                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.50 )
                         case Generate_DH_key_pair
-                        by solve( !KU( ~x ) @ #vk.62 )
+                        by solve( !KU( ~x ) @ #vk.64 )
                       next
                         case P_HandleQuery
-                        solve( !KU( ~x.1 ) @ #vk.62 )
+                        solve( !KU( ~x.1 ) @ #vk.64 )
                           case RevDH
                           by contradiction /* from formulas */
                         qed
                       next
                         case c_exp
-                        by solve( !KU( ~x ) @ #vk.64 )
+                        by solve( !KU( ~x ) @ #vk.66 )
                       qed
                     qed
                   qed
@@ -1906,11 +1806,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_key', '32'),
@@ -1923,15 +1819,11 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                       'g'^~x.1>,
                                                                      '32'),
                                                               <'HPKE_v1', 'secret', 'blank'>),
-                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                       Extract('blank',
-                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                               >)
-                                                      >,
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                       '32'),
                                                <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                 'odoh_nonce', '32'),
-                         <'0x02', '0x0000'>, a)
+                         <'0x02', key_id>, a)
                ) @ #vk.8 )
           case T_HandleQuery
           by contradiction /* from formulas */
@@ -1946,10 +1838,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                   >,
                                                                   '32'),
                                                            <'HPKE_v1', 'secret', 'blank'>),
-                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                    Extract('blank',
-                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                   >,
+                                                   <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                    '32'),
                                             <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                              'odoh_key', '32')
@@ -1964,11 +1853,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                      'g'^~x.1>,
                                                                     '32'),
                                                              <'HPKE_v1', 'secret', 'blank'>),
-                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                      Extract('blank',
-                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
-                                                              >)
-                                                     >,
+                                                     <'32', 'HPKE_v1', 'exp', '0x01', info_hash>,
                                                      '32'),
                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
                                'odoh_nonce', '32')
@@ -1982,11 +1867,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                                 'g'^~x, 'g'^~x.1>,
                                                                '32'),
                                                         <'HPKE_v1', 'secret', 'blank'>),
-                                                <'32', 'HPKE_v1', 'exp', '0x01', 
-                                                 Extract('blank',
-                                                         <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                                >,
-                                                '32'),
+                                                <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                          <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32'))
                      ) @ #vk.15 )
                 case c_Extract
@@ -1999,11 +1880,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                          ) @ #vk.27 )
                     case c_Expand
@@ -2014,23 +1891,21 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                        'g'^~x.1>,
                                                       '32'),
                                                <'HPKE_v1', 'secret', 'blank'>),
-                                       <'32', 'HPKE_v1', 'exp', '0x01', 
-                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                       '32')
+                                       <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                            ) @ #vk.54 )
                       case c_Expand
-                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.50 )
                         case C_QueryGeneration
-                        solve( !KU( ~x.1 ) @ #vk.62 )
+                        solve( !KU( ~x.1 ) @ #vk.64 )
                           case RevDH
                           by contradiction /* from formulas */
                         qed
                       next
                         case Generate_DH_key_pair
-                        by solve( !KU( ~x ) @ #vk.62 )
+                        by solve( !KU( ~x ) @ #vk.64 )
                       next
                         case c_exp
-                        by solve( !KU( ~x ) @ #vk.64 )
+                        by solve( !KU( ~x ) @ #vk.66 )
                       qed
                     qed
                   qed
@@ -2043,11 +1918,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                          ) @ #vk.21 )
                     case c_Expand
@@ -2058,9 +1929,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                        'g'^~x.1>,
                                                       '32'),
                                                <'HPKE_v1', 'secret', 'blank'>),
-                                       <'32', 'HPKE_v1', 'exp', '0x01', 
-                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                       '32')
+                                       <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                            ) @ #vk.24 )
                       case c_Expand
                       solve( !KU( Extract(Expand(Extract('blank',
@@ -2113,11 +1982,7 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                             'g'^~x, 'g'^~x.1>,
                                                            '32'),
                                                     <'HPKE_v1', 'secret', 'blank'>),
-                                            <'32', 'HPKE_v1', 'exp', '0x01', 
-                                             Extract('blank',
-                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
-                                            >,
-                                            '32'),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32'),
                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
                          ) @ #vk.27 )
                     case c_Expand
@@ -2128,23 +1993,21 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
                                                        'g'^~x.1>,
                                                       '32'),
                                                <'HPKE_v1', 'secret', 'blank'>),
-                                       <'32', 'HPKE_v1', 'exp', '0x01', 
-                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
-                                       '32')
+                                       <'32', 'HPKE_v1', 'exp', '0x01', info_hash>, '32')
                            ) @ #vk.56 )
                       case c_Expand
-                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.53 )
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.52 )
                         case Generate_DH_key_pair
-                        by solve( !KU( ~x ) @ #vk.64 )
+                        by solve( !KU( ~x ) @ #vk.66 )
                       next
                         case P_HandleQuery
-                        solve( !KU( ~x.1 ) @ #vk.64 )
+                        solve( !KU( ~x.1 ) @ #vk.66 )
                           case RevDH
                           by contradiction /* from formulas */
                         qed
                       next
                         case c_exp
-                        by solve( !KU( ~x ) @ #vk.66 )
+                        by solve( !KU( ~x ) @ #vk.68 )
                       qed
                     qed
                   qed
