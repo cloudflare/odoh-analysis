@@ -3,12 +3,12 @@ theory ODoH begin
 // Function signature and definition of the equational theory E
 
 builtins: diffie-hellman
-functions: Expand/3, Extract/2, aead/3, aead_verify/3, decrypt/2,
+functions: Expand/3, Extract/2, aead/4, aead_verify/4, decrypt/3,
            fst/1, h/1, hmac/1, pair/2, pk/1, sdec/2, senc/2, sign/2, snd/1,
            true/0, verify/3
 equations:
-    aead_verify(aead(k, p, a), a, k) = true,
-    decrypt(aead(k, p, a), k) = p,
+    aead_verify(k, n, a, aead(k, n, a, p)) = true,
+    decrypt(k, n, aead(k, n, a, p)) = p,
     fst(<x.1, x.2>) = x.1,
     sdec(senc(x.1, x.2), x.2) = x.1,
     snd(<x.1, x.2>) = x.2,
@@ -52,27 +52,65 @@ rule (modulo E) C_QueryGeneration:
   --[
   Neq( $P, $T ),
   CQE_sources( ~msg_id, 'g'^~x,
-               aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', gy^~x>),
-                           <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
-                    ~q, <'32', ~key_id, '0x01'>)
+               aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', gy^~x>),
+                           <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                    Expand(Extract(Expand(Extract('blank',
+                                                  <'HPKE_v1', 'eae_prk', gy^~x>),
+                                          <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                                   <'HPKE_v1', 'secret', 'blank'>),
+                           <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                            Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                           '32'),
+                    <'0x01', '32', ~key_id>, ~q)
   ),
   CQE( $C, $P, $T, ~connection_id, ~q, ~msg_id, 'g'^~x, gy, ~k )
   ]->
    [
-   Out( senc(<~connection_id, $T, ~msg_id, ~key_id, '0x01', 'g'^~x, 
-              aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', gy^~x>),
-                          <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
-                   ~q, <'32', ~key_id, '0x01'>)
+   Out( senc(<~connection_id, $T, ~msg_id, '0x01', ~key_id, 'g'^~x, 
+              aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', gy^~x>),
+                          <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                   Expand(Extract(Expand(Extract('blank',
+                                                 <'HPKE_v1', 'eae_prk', gy^~x>),
+                                         <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                                  <'HPKE_v1', 'secret', 'blank'>),
+                          <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                           Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                          '32'),
+                   <'0x01', '32', ~key_id>, ~q)
              >,
              ~k)
    ),
    C_ResponseHandler( ~q, $C, 'g'^~x, $P, ~k, $T, gy,
-                      Expand(Extract('blank',
-                                     <'HPKE_05', 'eae_prk', 
-                                      Expand(Extract('blank', <'HPKE_05', 'eae_prk', gy^~x>),
-                                             <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32')
-                                     >),
-                             <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
+                      Expand(Extract(~q,
+                                     Expand(Expand(Extract(Expand(Extract('blank',
+                                                                          <'HPKE_v1', 'eae_prk', 
+                                                                           gy^~x>),
+                                                                  <'32', 'HPKE_v1', 
+                                                                   'shared_secret', 'g'^~x, gy>,
+                                                                  '32'),
+                                                           <'HPKE_v1', 'secret', 'blank'>),
+                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                    Extract('blank',
+                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                   >,
+                                                   '32'),
+                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                             'odoh_key', '32'),
+                      Expand(Extract(~q,
+                                     Expand(Expand(Extract(Expand(Extract('blank',
+                                                                          <'HPKE_v1', 'eae_prk', 
+                                                                           gy^~x>),
+                                                                  <'32', 'HPKE_v1', 
+                                                                   'shared_secret', 'g'^~x, gy>,
+                                                                  '32'),
+                                                           <'HPKE_v1', 'secret', 'blank'>),
+                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                    Extract('blank',
+                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                   >,
+                                                   '32'),
+                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                             'odoh_nonce', '32'),
                       ~msg_id
    )
    ]
@@ -86,27 +124,65 @@ rule (modulo E) C_QueryGeneration:
     --[
     Neq( $P, $T ),
     CQE_sources( ~msg_id, 'g'^~x,
-                 aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
-                             <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
-                      ~q, <'32', ~key_id, '0x01'>)
+                 aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                             <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                      Expand(Extract(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                                            <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                                     <'HPKE_v1', 'secret', 'blank'>),
+                             <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                              Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                             '32'),
+                      <'0x01', '32', ~key_id>, ~q)
     ),
     CQE( $C, $P, $T, ~connection_id, ~q, ~msg_id, 'g'^~x, gy, ~k )
     ]->
      [
-     Out( senc(<~connection_id, $T, ~msg_id, ~key_id, '0x01', 'g'^~x, 
-                aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
-                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32'),
-                     ~q, <'32', ~key_id, '0x01'>)
+     Out( senc(<~connection_id, $T, ~msg_id, '0x01', ~key_id, 'g'^~x, 
+                aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                            <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                     Expand(Extract(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                                           <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, gy>, '32'),
+                                    <'HPKE_v1', 'secret', 'blank'>),
+                            <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                             Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                            '32'),
+                     <'0x01', '32', ~key_id>, ~q)
                >,
                ~k)
      ),
      C_ResponseHandler( ~q, $C, 'g'^~x, $P, ~k, $T, gy,
-                        Expand(Extract('blank',
-                                       <'HPKE_05', 'eae_prk', 
-                                        Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
-                                               <'32', 'HPKE_05', 'shared_secret', 'g'^~x, gy>, '32')
-                                       >),
-                               <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
+                        Expand(Extract(~q,
+                                       Expand(Expand(Extract(Expand(Extract('blank',
+                                                                            <'HPKE_v1', 'eae_prk', z
+                                                                            >),
+                                                                    <'32', 'HPKE_v1', 
+                                                                     'shared_secret', 'g'^~x, gy>,
+                                                                    '32'),
+                                                             <'HPKE_v1', 'secret', 'blank'>),
+                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                      Extract('blank',
+                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                              >)
+                                                     >,
+                                                     '32'),
+                                              <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                               'odoh_key', '32'),
+                        Expand(Extract(~q,
+                                       Expand(Expand(Extract(Expand(Extract('blank',
+                                                                            <'HPKE_v1', 'eae_prk', z
+                                                                            >),
+                                                                    <'32', 'HPKE_v1', 
+                                                                     'shared_secret', 'g'^~x, gy>,
+                                                                    '32'),
+                                                             <'HPKE_v1', 'secret', 'blank'>),
+                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                      Extract('blank',
+                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                              >)
+                                                     >,
+                                                     '32'),
+                                              <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                               'odoh_nonce', '32'),
                         ~msg_id
      )
      ]
@@ -119,27 +195,27 @@ rule (modulo E) C_QueryGeneration:
        gy    = z.32^inv(~x.25)
        z     = z.32
     
-    3. ~x    = ~x.145
-       gy    = x.279^x.280
-       z     = x.279^(~x.145*x.280)
+    3. ~x    = ~x.385
+       gy    = x.759^x.760
+       z     = x.759^(~x.385*x.760)
     
-    4. ~x    = ~x.146
-       gy    = x.281^inv((~x.146*x.282))
-       z     = x.281^inv(x.282)
+    4. ~x    = ~x.386
+       gy    = x.761^inv((~x.386*x.762))
+       z     = x.761^inv(x.762)
     
-    5. ~x    = ~x.146
-       gy    = x.281^(x.282*inv(~x.146))
-       z     = x.281^x.282
+    5. ~x    = ~x.386
+       gy    = x.761^(x.762*inv(~x.386))
+       z     = x.761^x.762
     
-    6. ~x    = ~x.147
-       gy    = x.282^(x.283*inv((~x.147*x.284)))
-       z     = x.282^(x.283*inv(x.284))
+    6. ~x    = ~x.387
+       gy    = x.762^(x.763*inv((~x.387*x.764)))
+       z     = x.762^(x.763*inv(x.764))
   */
 
 rule (modulo E) P_HandleQuery:
    [
    KeyExS( $C, $P, ~k ),
-   In( senc(<~connection_id, $T, msg_id, key_id, msg_type, gx, 
+   In( senc(<~connection_id, $T, msg_id, msg_type, key_id, gx, 
              opaque_message>,
             ~k)
    ),
@@ -147,7 +223,7 @@ rule (modulo E) P_HandleQuery:
    ]
   --[ PHQ( msg_id, gx, opaque_message ), Eq( msg_type, '0x01' ) ]->
    [
-   Out( <$T, msg_id, key_id, msg_type, gx, opaque_message> ),
+   Out( <$T, msg_id, msg_type, key_id, gx, opaque_message> ),
    P_ResponseHandler( ~ptid, $C, $P, ~k, msg_id )
    ]
 
@@ -155,36 +231,77 @@ rule (modulo E) P_HandleQuery:
 
 rule (modulo E) T_HandleQuery:
    [
-   In( <$T, msg_id, ~key_id, msg_type, gx, 
-        aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', gx^~y>),
-                    <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32'),
-             query, <'32', ~key_id, '0x01'>)
+   In( <$T, msg_id, msg_type, ~key_id, gx, 
+        aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', gx^~y>),
+                    <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+             Expand(Extract(Expand(Extract('blank',
+                                           <'HPKE_v1', 'eae_prk', gx^~y>),
+                                   <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                            <'HPKE_v1', 'secret', 'blank'>),
+                    <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                     Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                    '32'),
+             <'0x01', '32', ~key_id>, query)
        >
    ),
-   !Ltk( $T, ~key_id, ~y ), Fr( ~ttid ), In( r )
+   !Ltk( $T, ~key_id, ~y ), Fr( ~ttid ), Fr( ~r )
    ]
   --[
   Eq( msg_type, '0x01' ),
-  Eq( aead_verify(aead(Expand(Extract('blank',
-                                      <'HPKE_05', 'eae_prk', gx^~y>),
-                              <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32'),
-                       query, <'32', ~key_id, '0x01'>),
-                  <'32', ~key_id, '0x01'>,
-                  Expand(Extract('blank', <'HPKE_05', 'eae_prk', gx^~y>),
-                         <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32')),
+  Eq( aead_verify(Expand(Extract('blank',
+                                 <'HPKE_v1', 'eae_prk', gx^~y>),
+                         <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                  Expand(Extract(Expand(Extract('blank',
+                                                <'HPKE_v1', 'eae_prk', gx^~y>),
+                                        <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                                 <'HPKE_v1', 'secret', 'blank'>),
+                         <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                          Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                         '32'),
+                  <'0x01', '32', ~key_id>,
+                  aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', gx^~y>),
+                              <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                       Expand(Extract(Expand(Extract('blank',
+                                                     <'HPKE_v1', 'eae_prk', gx^~y>),
+                                             <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                                      <'HPKE_v1', 'secret', 'blank'>),
+                              <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                               Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                              '32'),
+                       <'0x01', '32', ~key_id>, query)),
       true
   ),
-  T_Done( ~ttid, msg_id ), T_Answer( $T, query, r )
+  T_Done( ~ttid, msg_id ), T_Answer( $T, 'g'^~y, query, ~r )
   ]->
    [
-   Out( <msg_id, ~key_id, '0x02', 
-         aead(Expand(Extract('blank',
-                             <'HPKE_05', 'eae_prk', 
-                              Expand(Extract('blank', <'HPKE_05', 'eae_prk', gx^~y>),
-                                     <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32')
-                             >),
-                     <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-              r, <'32', ~key_id, '0x02'>)
+   Out( <msg_id, '0x02', '0x0000', 
+         aead(Expand(Extract(query,
+                             Expand(Expand(Extract(Expand(Extract('blank',
+                                                                  <'HPKE_v1', 'eae_prk', gx^~y>),
+                                                          <'32', 'HPKE_v1', 'shared_secret', gx, 
+                                                           'g'^~y>,
+                                                          '32'),
+                                                   <'HPKE_v1', 'secret', 'blank'>),
+                                           <'32', 'HPKE_v1', 'exp', '0x01', 
+                                            Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                           >,
+                                           '32'),
+                                    <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                     'odoh_key', '32'),
+              Expand(Extract(query,
+                             Expand(Expand(Extract(Expand(Extract('blank',
+                                                                  <'HPKE_v1', 'eae_prk', gx^~y>),
+                                                          <'32', 'HPKE_v1', 'shared_secret', gx, 
+                                                           'g'^~y>,
+                                                          '32'),
+                                                   <'HPKE_v1', 'secret', 'blank'>),
+                                           <'32', 'HPKE_v1', 'exp', '0x01', 
+                                            Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                           >,
+                                           '32'),
+                                    <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                     'odoh_nonce', '32'),
+              <'0x02', '0x0000'>, ~r)
         >
    )
    ]
@@ -192,27 +309,55 @@ rule (modulo E) T_HandleQuery:
   /*
   rule (modulo AC) T_HandleQuery:
      [
-     In( <$T, msg_id, ~key_id, msg_type, gx, 
-          aead(Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
-                      <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32'),
-               query, <'32', ~key_id, '0x01'>)
+     In( <$T, msg_id, msg_type, ~key_id, gx, 
+          aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                      <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+               Expand(Extract(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                                     <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                              <'HPKE_v1', 'secret', 'blank'>),
+                      <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                       Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                      '32'),
+               <'0x01', '32', ~key_id>, query)
          >
      ),
-     !Ltk( $T, ~key_id, ~y ), Fr( ~ttid ), In( r )
+     !Ltk( $T, ~key_id, ~y ), Fr( ~ttid ), Fr( ~r )
      ]
     --[
     Eq( msg_type, '0x01' ), Eq( true, true ), T_Done( ~ttid, msg_id ),
-    T_Answer( $T, query, r )
+    T_Answer( $T, 'g'^~y, query, ~r )
     ]->
      [
-     Out( <msg_id, ~key_id, '0x02', 
-           aead(Expand(Extract('blank',
-                               <'HPKE_05', 'eae_prk', 
-                                Expand(Extract('blank', <'HPKE_05', 'eae_prk', z>),
-                                       <'32', 'HPKE_05', 'shared_secret', gx, 'g'^~y>, '32')
-                               >),
-                       <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-                r, <'32', ~key_id, '0x02'>)
+     Out( <msg_id, '0x02', '0x0000', 
+           aead(Expand(Extract(query,
+                               Expand(Expand(Extract(Expand(Extract('blank',
+                                                                    <'HPKE_v1', 'eae_prk', z>),
+                                                            <'32', 'HPKE_v1', 'shared_secret', gx, 
+                                                             'g'^~y>,
+                                                            '32'),
+                                                     <'HPKE_v1', 'secret', 'blank'>),
+                                             <'32', 'HPKE_v1', 'exp', '0x01', 
+                                              Extract('blank',
+                                                      <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                             >,
+                                             '32'),
+                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                       'odoh_key', '32'),
+                Expand(Extract(query,
+                               Expand(Expand(Extract(Expand(Extract('blank',
+                                                                    <'HPKE_v1', 'eae_prk', z>),
+                                                            <'32', 'HPKE_v1', 'shared_secret', gx, 
+                                                             'g'^~y>,
+                                                            '32'),
+                                                     <'HPKE_v1', 'secret', 'blank'>),
+                                             <'32', 'HPKE_v1', 'exp', '0x01', 
+                                              Extract('blank',
+                                                      <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                             >,
+                                             '32'),
+                                      <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                       'odoh_nonce', '32'),
+                <'0x02', '0x0000'>, ~r)
           >
      )
      ]
@@ -221,75 +366,53 @@ rule (modulo E) T_HandleQuery:
        gx    = gx.17
        z     = gx.17^~y.16
     
-    2. ~y    = ~y.24
-       gx    = z.33^inv(~y.24)
-       z     = z.33
+    2. ~y    = ~y.23
+       gx    = z.31^inv(~y.23)
+       z     = z.31
     
-    3. ~y    = ~y.238
-       gx    = x.470^x.471
-       z     = x.470^(~y.238*x.471)
+    3. ~y    = ~y.568
+       gx    = x.1129^x.1130
+       z     = x.1129^(~y.568*x.1130)
     
-    4. ~y    = ~y.239
-       gx    = x.472^inv((~y.239*x.473))
-       z     = x.472^inv(x.473)
+    4. ~y    = ~y.569
+       gx    = x.1131^inv((~y.569*x.1132))
+       z     = x.1131^inv(x.1132)
     
-    5. ~y    = ~y.239
-       gx    = x.472^(x.473*inv(~y.239))
-       z     = x.472^x.473
+    5. ~y    = ~y.569
+       gx    = x.1131^(x.1132*inv(~y.569))
+       z     = x.1131^x.1132
     
-    6. ~y    = ~y.240
-       gx    = x.473^(x.474*inv((~y.240*x.475)))
-       z     = x.473^(x.474*inv(x.475))
+    6. ~y    = ~y.570
+       gx    = x.1132^(x.1133*inv((~y.570*x.1134)))
+       z     = x.1132^(x.1133*inv(x.1134))
   */
 
 rule (modulo E) P_HandleResponse:
    [
    P_ResponseHandler( ~ptid, $C, $P, ~k, msg_id ),
-   In( <msg_id, key_id, msg_type, opaque_message> )
+   In( <msg_id, msg_type, key_id, opaque_message> )
    ]
   --[ P_Done( ~ptid, msg_id ), Eq( msg_type, '0x02' ) ]->
-   [ Out( senc(<msg_id, key_id, msg_type, opaque_message>, ~k) ) ]
+   [ Out( senc(<msg_id, msg_type, key_id, opaque_message>, ~k) ) ]
 
   /* has exactly the trivial AC variant */
 
 rule (modulo E) C_HandleResponse:
    [
    C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy, response_secret,
-                      ~msg_id
+                      response_nonce, ~msg_id
    ),
-   In( senc(<~msg_id, key_id, msg_type, 
-             aead(response_secret, answer, <'32', key_id, '0x02'>)>,
+   In( senc(<~msg_id, msg_type, '0x0000', 
+             aead(response_secret, response_nonce, <'0x02', '0x0000'>, answer)>,
             ~k)
    )
    ]
   --[
-  Eq( msg_type, '0x02' ),
-  Eq( aead_verify(aead(response_secret, answer,
-                       <'32', key_id, '0x02'>),
-                  <'32', key_id, '0x02'>, response_secret),
-      true
-  ),
-  C_Done( ~query, answer, $C, gx, $T, gy )
+  Eq( msg_type, '0x02' ), C_Done( ~query, answer, $C, gx, $T, gy )
   ]->
    [ ]
 
-  /*
-  rule (modulo AC) C_HandleResponse:
-     [
-     C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy, response_secret,
-                        ~msg_id
-     ),
-     In( senc(<~msg_id, key_id, msg_type, 
-               aead(response_secret, answer, <'32', key_id, '0x02'>)>,
-              ~k)
-     )
-     ]
-    --[
-    Eq( msg_type, '0x02' ), Eq( true, true ),
-    C_Done( ~query, answer, $C, gx, $T, gy )
-    ]->
-     [ ]
-  */
+  /* has exactly the trivial AC variant */
 
 rule (modulo E) RevSK:
    [ KeyExI( $X, $Y, ~kxy ) ] --[ RevSk( ~kxy ) ]-> [ Out( ~kxy ) ]
@@ -300,6 +423,13 @@ rule (modulo E) RevDH:
    [ !Ltk( $A, ~key_id, ~x ) ]
   --[ RevDH( $A, ~key_id, 'g'^~x ) ]->
    [ Out( ~x ) ]
+
+  /* has exactly the trivial AC variant */
+
+rule (modulo E) NonceReuse:
+   [ In( aead(k, n, a1, p1) ), In( aead(k, n, a2, p2) ) ]
+  --[ Neq( p1, p2 ), ReuseNonce( k, n, p1, p2 ) ]->
+   [ Out( p1 ) ]
 
   /* has exactly the trivial AC variant */
 
@@ -321,253 +451,27 @@ guarded formula characterizing all counter-examples:
     (∀ #i. (!KU( gx ) @ #i) ⇒ ¬(#i < #j)) ∨
     (∀ #i. (!KU( op ) @ #i) ⇒ ¬(#i < #j))))"
 */
-induction
-  case empty_trace
-  by contradiction /* from formulas */
-next
-  case non_empty_trace
-  simplify
-  solve( (∀ #i. (!KU( mid ) @ #i) ⇒ ¬(#i < #j))  ∥
-         (∀ #i. (!KU( gx ) @ #i) ⇒ ¬(#i < #j))  ∥
-         (∀ #i. (!KU( op ) @ #i) ⇒ ¬(#i < #j)) )
-    case case_1
-    solve( (last(#j))  ∥
-           (∃ #i.
-             (CQE_sources( mid, gx, op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))  ∥
-           ((∃ #i. (!KU( mid ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
-            (∃ #i. (!KU( gx ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
-            (∃ #i. (!KU( op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))) )
-      case case_1
-      solve( KeyExS( $C, $P, ~k ) ▶₀ #j )
-        case Starter
-        solve( !KU( senc(<~connection_id, $T, mid, key_id, '0x01', gx, op>,
-                         ~k)
-               ) @ #vk )
-          case C_QueryGeneration
-          by contradiction /* from formulas */
-        next
-          case P_HandleQuery_case_1
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            by contradiction /* impossible chain */
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case P_HandleQuery_case_2
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            by contradiction /* impossible chain */
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case P_HandleQuery_case_3
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            solve( (#vr.6, 0) ~~> (#vk, 0) )
-              case d_0_decrypt
-              by contradiction /* impossible chain */
-            qed
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case c_senc
-          by contradiction /* from formulas */
-        qed
-      qed
-    next
-      case case_2
-      by contradiction /* from formulas */
-    next
-      case case_3
-      by contradiction /* from formulas */
-    qed
-  next
-    case case_2
-    solve( (last(#j))  ∥
-           (∃ #i.
-             (CQE_sources( mid, gx, op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))  ∥
-           ((∃ #i. (!KU( mid ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
-            (∃ #i. (!KU( gx ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
-            (∃ #i. (!KU( op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))) )
-      case case_1
-      solve( KeyExS( $C, $P, ~k ) ▶₀ #j )
-        case Starter
-        solve( !KU( senc(<~connection_id, $T, mid, key_id, '0x01', gx, op>,
-                         ~k)
-               ) @ #vk )
-          case C_QueryGeneration
-          by contradiction /* from formulas */
-        next
-          case P_HandleQuery_case_1
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            by contradiction /* impossible chain */
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case P_HandleQuery_case_2
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            by contradiction /* impossible chain */
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case P_HandleQuery_case_3
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            solve( (#vr.6, 0) ~~> (#vk, 0) )
-              case d_0_decrypt
-              by contradiction /* impossible chain */
-            qed
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case c_senc
-          by contradiction /* from formulas */
-        qed
-      qed
-    next
-      case case_2
-      by contradiction /* from formulas */
-    next
-      case case_3
-      by contradiction /* from formulas */
-    qed
-  next
-    case case_3
-    solve( (last(#j))  ∥
-           (∃ #i.
-             (CQE_sources( mid, gx, op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))  ∥
-           ((∃ #i. (!KU( mid ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
-            (∃ #i. (!KU( gx ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j)) ∧
-            (∃ #i. (!KU( op ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #j))) )
-      case case_1
-      solve( KeyExS( $C, $P, ~k ) ▶₀ #j )
-        case Starter
-        solve( !KU( senc(<~connection_id, $T, mid, key_id, '0x01', gx, op>,
-                         ~k)
-               ) @ #vk )
-          case C_QueryGeneration
-          by contradiction /* from formulas */
-        next
-          case P_HandleQuery_case_1
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            by contradiction /* impossible chain */
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case P_HandleQuery_case_2
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            by contradiction /* impossible chain */
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case P_HandleQuery_case_3
-          solve( (∃ #i.
-                   (CQE_sources( msg_id, gx.1, opaque_message ) @ #i)
-                  ∧
-                   (¬(last(#i))) ∧ (#i < #vr.1))  ∥
-                 ((∃ #i. (!KU( msg_id ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i. (!KU( gx.1 ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1)) ∧
-                  (∃ #i.
-                    (!KU( opaque_message ) @ #i) ∧ (¬(last(#i))) ∧ (#i < #vr.1))) )
-            case case_1
-            solve( (#vr.6, 0) ~~> (#vk, 0) )
-              case d_0_decrypt
-              by contradiction /* impossible chain */
-            qed
-          next
-            case case_2
-            by contradiction /* cyclic */
-          qed
-        next
-          case c_senc
-          by contradiction /* from formulas */
-        qed
-      qed
-    next
-      case case_2
-      by contradiction /* from formulas */
-    next
-      case case_3
-      by contradiction /* from formulas */
-    qed
-  qed
-qed
+by sorry
+
+lemma aead_source [sources]:
+  all-traces
+  "∀ k n a p #j.
+    (!KU( aead(k, n, a, p) ) @ #j) ⇒
+    (((∃ #i. (!KU( p ) @ #i) ∧ (#i < #j)) ∨
+      (∃ T gy q #i. (T_Answer( T, gy, q, p ) @ #i) ∧ (#i < #j))) ∨
+     (∃ C P T cid msg_id gx gy key #i.
+       (CQE( C, P, T, cid, p, msg_id, gx, gy, key ) @ #i) ∧ (#i < #j)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ k n a p #j.
+  (!KU( aead(k, n, a, p) ) @ #j)
+ ∧
+  (∀ #i. (!KU( p ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ T gy q #i. (T_Answer( T, gy, q, p ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ C P T cid msg_id gx gy key #i.
+    (CQE( C, P, T, cid, p, msg_id, gx, gy, key ) @ #i) ⇒ ¬(#i < #j))"
+*/
+by sorry
 
 lemma end_to_end:
   exists-trace
@@ -578,96 +482,181 @@ guarded formula characterizing all satisfying traces:
 */
 simplify
 solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
-                          response_secret, ~msg_id
+                          response_secret, response_nonce, ~msg_id
        ) ▶₀ #i )
   case C_QueryGeneration
-  solve( !KU( senc(<~msg_id, key_id, '0x02', 
-                    aead(Expand(Extract('blank',
-                                        <'HPKE_05', 'eae_prk', 
-                                         Expand(Extract('blank',
-                                                        <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                                <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1
-                                                >,
-                                                '32')
-                                        >),
-                                <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-                         a, <'32', key_id, '0x02'>)
+  solve( !KU( senc(<~msg_id, '0x02', '0x0000', 
+                    aead(Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_key', '32'),
+                         Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_nonce', '32'),
+                         <'0x02', '0x0000'>, a)
                    >,
                    ~k)
          ) @ #vk )
     case P_HandleResponse
-    solve( !KU( aead(Expand(Extract('blank',
-                                    <'HPKE_05', 'eae_prk', 
-                                     Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>,
-                                            '32')
-                                    >),
-                            <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-                     a, <'32', key_id, '0x02'>)
+    solve( !KU( aead(Expand(Extract(~query,
+                                    Expand(Expand(Extract(Expand(Extract('blank',
+                                                                         <'HPKE_v1', 'eae_prk', 
+                                                                          'g'^(~x*~x.1)>),
+                                                                 <'32', 'HPKE_v1', 'shared_secret', 
+                                                                  'g'^~x, 'g'^~x.1>,
+                                                                 '32'),
+                                                          <'HPKE_v1', 'secret', 'blank'>),
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                   Extract('blank',
+                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                  >,
+                                                  '32'),
+                                           <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                            'odoh_key', '32'),
+                     Expand(Extract(~query,
+                                    Expand(Expand(Extract(Expand(Extract('blank',
+                                                                         <'HPKE_v1', 'eae_prk', 
+                                                                          'g'^(~x*~x.1)>),
+                                                                 <'32', 'HPKE_v1', 'shared_secret', 
+                                                                  'g'^~x, 'g'^~x.1>,
+                                                                 '32'),
+                                                          <'HPKE_v1', 'secret', 'blank'>),
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                   Extract('blank',
+                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                  >,
+                                                  '32'),
+                                           <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                            'odoh_nonce', '32'),
+                     <'0x02', '0x0000'>, a)
            ) @ #vk.7 )
       case T_HandleQuery
-      solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, key_id.1, 
-                        '0x01', gx, opaque_message>,
+      solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
+                        key_id.1, gx, opaque_message>,
                        ~k)
-             ) @ #vk.9 )
+             ) @ #vk.8 )
         case C_QueryGeneration
-        solve( !KU( aead(Expand(Extract('blank',
-                                        <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32'),
-                         query.1, <'32', ~key_id, '0x01'>)
-               ) @ #vk.18 )
+        solve( !KU( ~msg_id ) @ #vk.5 )
           case C_QueryGeneration
           by sorry
         next
           case P_HandleQuery
-          solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, key_id.1, 
-                            '0x01', 'g'^~x, 
+          solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
+                            key_id.1, 'g'^~x, 
                             aead(Expand(Extract('blank',
-                                                <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                        <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32'),
-                                 ~query, <'32', ~key_id, '0x01'>)
+                                                <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                        <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32'),
+                                 Expand(Extract(Expand(Extract('blank',
+                                                               <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                               >),
+                                                       <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                        'g'^~x.1>,
+                                                       '32'),
+                                                <'HPKE_v1', 'secret', 'blank'>),
+                                        <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                        '32'),
+                                 <'0x01', '32', ~key_id>, ~query)
                            >,
                            ~k.1)
                  ) @ #vk.20 )
             case C_QueryGeneration
-            solve( !KU( ~msg_id ) @ #vk.8 )
-              case P_HandleQuery
-              solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, key_id.1, 
-                                '0x01', 'g'^~x, 
-                                aead(Expand(Extract('blank',
-                                                    <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>,
-                                            '32'),
-                                     ~query, <'32', ~key_id, '0x01'>)
-                               >,
-                               ~k.1)
-                     ) @ #vk.20 )
-                case C_QueryGeneration
-                solve( !KU( ~key_id ) @ #vk.11 )
+            solve( !KU( ~key_id ) @ #vk.9 )
+              case C_QueryGeneration
+              by sorry
+            next
+              case Generate_DH_key_pair
+              solve( !KU( 'g'^~x ) @ #vk.18 )
+                case P_HandleQuery
+                solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
+                                  key_id.1, 'g'^~x, 
+                                  aead(Expand(Extract('blank',
+                                                      <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                              <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>,
+                                              '32'),
+                                       Expand(Extract(Expand(Extract('blank',
+                                                                     <'HPKE_v1', 'eae_prk', 
+                                                                      'g'^(~x*~x.1)>),
+                                                             <'32', 'HPKE_v1', 'shared_secret', 
+                                                              'g'^~x, 'g'^~x.1>,
+                                                             '32'),
+                                                      <'HPKE_v1', 'secret', 'blank'>),
+                                              <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                               Extract('blank',
+                                                       <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                              >,
+                                              '32'),
+                                       <'0x01', '32', ~key_id>, ~query)
+                                 >,
+                                 ~k.1)
+                       ) @ #vk.20 )
                   case C_QueryGeneration
-                  by sorry
-                next
-                  case Generate_DH_key_pair
-                  solve( !KU( 'g'^~x ) @ #vk.18 )
+                  solve( !KU( aead(Expand(Extract('blank',
+                                                  <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                          <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>,
+                                          '32'),
+                                   Expand(Extract(Expand(Extract('blank',
+                                                                 <'HPKE_v1', 'eae_prk', 
+                                                                  'g'^(~x*~x.1)>),
+                                                         <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                          'g'^~x.1>,
+                                                         '32'),
+                                                  <'HPKE_v1', 'secret', 'blank'>),
+                                          <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                           Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                          >,
+                                          '32'),
+                                   <'0x01', '32', ~key_id>, ~query)
+                         ) @ #vk.19 )
                     case P_HandleQuery
                     SOLVED // trace found
-                  next
-                    case c_exp
-                    by sorry
                   qed
+                next
+                  case P_HandleResponse
+                  by contradiction /* cyclic */
+                next
+                  case c_senc
+                  by contradiction /* cyclic */
                 qed
               next
-                case c_senc
-                by contradiction /* cyclic */
+                case c_exp
+                by sorry
               qed
             qed
+          next
+            case P_HandleResponse
+            by contradiction /* cyclic */
           next
             case c_senc
             by contradiction /* cyclic */
           qed
-        next
-          case c_aead
-          by sorry
         qed
       next
         case c_senc
@@ -688,21 +677,14 @@ lemma secret_query:
   "∀ C P T cid q msg_id gx gy key #j #k.
     ((CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
      (!KU( q ) @ #k)) ⇒
-    (∃ A kid gz #i.
-      ((RevDH( A, kid, gz ) @ #i) ∧
-       (((A = C) ∧ (gz = gx)) ∨ ((A = T) ∧ (gz = gy)))) ∧
-      (#i < #k))"
+    (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k))"
 /*
 guarded formula characterizing all counter-examples:
 "∃ C P T cid q msg_id gx gy key #j #k.
   (CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
   (!KU( q ) @ #k)
  ∧
-  ∀ A kid gz #i.
-   (RevDH( A, kid, gz ) @ #i)
-  ⇒
-   (((((¬(A = C)) ∨ (¬(gz = gx)))) ∧ (((¬(A = T)) ∨ (¬(gz = gy))))) ∨
-    (¬(#i < #k)))"
+  ∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)"
 */
 simplify
 solve( KeyExC( $C, $P, ~k ) ▶₀ #j )
@@ -711,40 +693,348 @@ solve( KeyExC( $C, $P, ~k ) ▶₀ #j )
     case Generate_DH_key_pair
     solve( !KU( ~q ) @ #k.1 )
       case C_QueryGeneration
-      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.16 )
-        case C_QueryGeneration
-        solve( !KU( ~x ) @ #vk.17 )
-          case RevDH
-          by contradiction /* from formulas */
-        qed
-      next
-        case Generate_DH_key_pair
-        by solve( !KU( ~x.1 ) @ #vk.17 )
-      next
-        case c_exp
-        solve( !KU( ~x ) @ #vk.19 )
-          case RevDH
-          by contradiction /* from formulas */
+      solve( !KU( ~k ) @ #vk.6 )
+        case RevSK
+        solve( !KU( 'g'^(~x*~x.1) ) @ #vk.26 )
+          case C_QueryGeneration
+          solve( !KU( ~x ) @ #vk.33 )
+            case RevDH
+            by contradiction /* from formulas */
+          qed
+        next
+          case Generate_DH_key_pair
+          by solve( !KU( ~x.1 ) @ #vk.33 )
+        next
+          case c_exp
+          solve( !KU( ~x ) @ #vk.35 )
+            case RevDH
+            by contradiction /* from formulas */
+          qed
         qed
       qed
     next
-      case P_HandleQuery
-      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.17 )
-        case Generate_DH_key_pair
-        by solve( !KU( ~x.1 ) @ #vk.18 )
+      case NonceReuse
+      solve( !KU( aead(k.2, n, a1, ~q) ) @ #vk )
+        case C_QueryGeneration
+        solve( !KU( ~k ) @ #vk.2 )
+          case RevSK
+          solve( !KU( aead(Expand(Extract('blank',
+                                          <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                  <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32'),
+                           Expand(Extract(Expand(Extract('blank',
+                                                         <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                 <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x
+                                                 >,
+                                                 '32'),
+                                          <'HPKE_v1', 'secret', 'blank'>),
+                                  <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                   Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                  '32'),
+                           a2, p2)
+                 ) @ #vk.2 )
+            case C_QueryGeneration
+            by contradiction /* from formulas */
+          next
+            case c_aead
+            solve( !KU( Expand(Extract('blank',
+                                       <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                               <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32')
+                   ) @ #vk.3 )
+              case c_Expand
+              solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                        <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x
+                                                >,
+                                                '32'),
+                                         <'HPKE_v1', 'secret', 'blank'>),
+                                 <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                  Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                 '32')
+                     ) @ #vk.4 )
+                case c_Expand
+                solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                       ) @ #vk.7 )
+                  case c_Extract
+                  solve( !KU( Extract(Expand(Extract('blank',
+                                                     <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                             <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                             '32'),
+                                      <'HPKE_v1', 'secret', 'blank'>)
+                         ) @ #vk.20 )
+                    case c_Extract
+                    solve( !KU( 'g'^(~x*~x.1) ) @ #vk.31 )
+                      case C_QueryGeneration
+                      solve( !KU( ~x ) @ #vk.33 )
+                        case RevDH
+                        by contradiction /* from formulas */
+                      qed
+                    next
+                      case Generate_DH_key_pair
+                      by solve( !KU( ~x.1 ) @ #vk.33 )
+                    next
+                      case c_exp
+                      solve( !KU( ~x ) @ #vk.35 )
+                        case RevDH
+                        by contradiction /* from formulas */
+                      qed
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
       next
         case P_HandleQuery
-        solve( !KU( ~x ) @ #vk.18 )
+        solve( !KU( aead(Expand(Extract('blank',
+                                        <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32'),
+                         Expand(Extract(Expand(Extract('blank',
+                                                       <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                               <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                               '32'),
+                                        <'HPKE_v1', 'secret', 'blank'>),
+                                <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                 Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                '32'),
+                         a2, p2)
+               ) @ #vk.1 )
+          case P_HandleQuery
+          by contradiction /* from formulas */
+        next
+          case c_aead
+          solve( !KU( Expand(Extract('blank',
+                                     <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                             <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32')
+                 ) @ #vk.4 )
+            case c_Expand
+            solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                      <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                              <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                              '32'),
+                                       <'HPKE_v1', 'secret', 'blank'>),
+                               <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                               '32')
+                   ) @ #vk.5 )
+              case c_Expand
+              solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                     ) @ #vk.8 )
+                case c_Extract
+                solve( !KU( Extract(Expand(Extract('blank',
+                                                   <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                           <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                           '32'),
+                                    <'HPKE_v1', 'secret', 'blank'>)
+                       ) @ #vk.21 )
+                  case c_Extract
+                  solve( !KU( 'g'^(~x*~x.1) ) @ #vk.32 )
+                    case Generate_DH_key_pair
+                    by solve( !KU( ~x.1 ) @ #vk.34 )
+                  next
+                    case P_HandleQuery
+                    solve( !KU( ~x ) @ #vk.34 )
+                      case RevDH
+                      by contradiction /* from formulas */
+                    qed
+                  next
+                    case c_exp
+                    solve( !KU( ~x ) @ #vk.36 )
+                      case RevDH
+                      by contradiction /* from formulas */
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          qed
+        qed
+      next
+        case c_aead
+        by contradiction /* cyclic */
+      qed
+    next
+      case P_HandleQuery
+      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.26 )
+        case Generate_DH_key_pair
+        by solve( !KU( ~x.1 ) @ #vk.34 )
+      next
+        case P_HandleQuery
+        solve( !KU( ~x ) @ #vk.34 )
           case RevDH
           by contradiction /* from formulas */
         qed
       next
         case c_exp
-        solve( !KU( ~x ) @ #vk.20 )
+        solve( !KU( ~x ) @ #vk.36 )
           case RevDH
           by contradiction /* from formulas */
         qed
       qed
+    qed
+  qed
+qed
+
+lemma secret_response:
+  all-traces
+  "∀ T gy q a #j #k.
+    ((T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
+    (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ T gy q a #j #k.
+  (T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
+ ∧
+  ∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)"
+*/
+simplify
+solve( !Ltk( $T, ~key_id, ~y ) ▶₁ #j )
+  case Generate_DH_key_pair
+  solve( !KU( ~r ) @ #k )
+    case NonceReuse
+    solve( !KU( aead(Expand(Extract('blank',
+                                    <'HPKE_v1', 'eae_prk', z>),
+                            <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                     Expand(Extract(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', z>),
+                                           <'32', 'HPKE_v1', 'shared_secret', gx, 'g'^~y>, '32'),
+                                    <'HPKE_v1', 'secret', 'blank'>),
+                            <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                             Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                            '32'),
+                     <'0x01', '32', ~key_id>, q)
+           ) @ #vk.11 )
+      case C_QueryGeneration
+      by sorry
+    next
+      case P_HandleQuery
+      solve( !KU( aead(k.1, n, a1, ~r) ) @ #vk.1 )
+        case T_HandleQuery
+        solve( !KU( aead(Expand(Extract(~q,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~y)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~y>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_key', '32'),
+                         Expand(Extract(~q,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~y)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~y>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_nonce', '32'),
+                         a2, p2)
+               ) @ #vk.12 )
+          case T_HandleQuery
+          solve( !KU( senc(<~connection_id.1, $T.1, ~msg_id, '0x01', 
+                            key_id.1, 'g'^~x, 
+                            aead(Expand(Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~y)>),
+                                        <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~y>, '32'),
+                                 Expand(Extract(Expand(Extract('blank',
+                                                               <'HPKE_v1', 'eae_prk', 'g'^(~x*~y)>),
+                                                       <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                        'g'^~y>,
+                                                       '32'),
+                                                <'HPKE_v1', 'secret', 'blank'>),
+                                        <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                        '32'),
+                                 <'0x01', '32', ~key_id>, ~q)
+                           >,
+                           ~k.2)
+                 ) @ #vk.15 )
+            case C_QueryGeneration
+            solve( !KU( ~key_id ) @ #vk.14 )
+              case C_QueryGeneration
+              by sorry
+            next
+              case Generate_DH_key_pair
+              solve( !KU( 'g'^~x ) @ #vk.15 )
+                case P_HandleQuery
+                SOLVED // trace found
+              qed
+            qed
+          next
+            case P_HandleResponse
+            by contradiction /* cyclic */
+          next
+            case c_senc
+            by contradiction /* cyclic */
+          qed
+        next
+          case c_aead
+          by sorry
+        qed
+      next
+        case c_aead
+        by contradiction /* cyclic */
+      qed
+    next
+      case c_aead
+      by sorry
+    qed
+  next
+    case T_HandleQuery
+    by sorry
+  qed
+qed
+
+lemma secret_response_nr:
+  all-traces
+  "∀ T q gy a #j #k.
+    ((T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)) ⇒
+    (((∃ k.1 n p #i. (ReuseNonce( k.1, n, a, p ) @ #i) ∧ (#i < #k)) ∨
+      (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #k))) ∨
+     (∃ #i. (!KU( q ) @ #i) ∧ (#i < #k)))"
+/*
+guarded formula characterizing all counter-examples:
+"∃ T q gy a #j #k.
+  (T_Answer( T, gy, q, a ) @ #j) ∧ (!KU( a ) @ #k)
+ ∧
+  (∀ k.1 n p #i. (ReuseNonce( k.1, n, a, p ) @ #i) ⇒ ¬(#i < #k)) ∧
+  (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #k)) ∧
+  (∀ #i. (!KU( q ) @ #i) ⇒ ¬(#i < #k))"
+*/
+simplify
+solve( !Ltk( $T, ~key_id, ~y ) ▶₁ #j )
+  case Generate_DH_key_pair
+  solve( !KU( ~key_id ) @ #vk.7 )
+    case C_QueryGeneration
+    solve( !KU( ~r ) @ #k.1 )
+      case NonceReuse
+      by contradiction /* from formulas */
+    next
+      case T_HandleQuery
+      by contradiction /* from formulas */
+    qed
+  next
+    case Generate_DH_key_pair
+    solve( !KU( ~r ) @ #k )
+      case NonceReuse
+      by contradiction /* from formulas */
+    next
+      case T_HandleQuery
+      by contradiction /* from formulas */
     qed
   qed
 qed
@@ -784,11 +1074,8 @@ lemma query_binding:
     (((CQE( C, P, T, cid, q, msg_id, gx, gy, key ) @ #j) ∧
       (!KU( q ) @ #k)) ∧
      (!KU( cid ) @ #l)) ⇒
-    (∃ A kid gz #h #i.
-      ((((RevDH( A, kid, gz ) @ #i) ∧
-         (((A = C) ∧ (gz = gx)) ∨ ((A = T) ∧ (gz = gy)))) ∧
-        (#i < #k)) ∧
-       (RevSk( key ) @ #h)) ∧
+    (∃ kid #h #i.
+      (((RevDH( T, kid, gy ) @ #i) ∧ (#i < #k)) ∧ (RevSk( key ) @ #h)) ∧
       (#h < #l))"
 /*
 guarded formula characterizing all counter-examples:
@@ -797,54 +1084,219 @@ guarded formula characterizing all counter-examples:
   (!KU( q ) @ #k) ∧
   (!KU( cid ) @ #l)
  ∧
-  ∀ A kid gz #h #i.
-   (RevDH( A, kid, gz ) @ #i) ∧ (RevSk( key ) @ #h)
+  ∀ kid #h #i.
+   (RevDH( T, kid, gy ) @ #i) ∧ (RevSk( key ) @ #h)
   ⇒
-   (((((¬(A = C)) ∨ (¬(gz = gx)))) ∧ (((¬(A = T)) ∨ (¬(gz = gy))))) ∨
-    (¬(#i < #k)) ∨
-    (¬(#h < #l)))"
+   ((¬(#i < #k)) ∨ (¬(#h < #l)))"
 */
 simplify
 solve( KeyExC( $C, $P, ~k ) ▶₀ #j )
   case Starter
   solve( !Pk( $T, ~key_id, gy ) ▶₁ #j )
     case Generate_DH_key_pair
-    solve( !KU( ~connection_id ) @ #l )
+    solve( !KU( ~q ) @ #k.1 )
       case C_QueryGeneration
-      solve( !KU( ~k ) @ #vk )
+      solve( !KU( ~k ) @ #vk.6 )
         case RevSK
-        solve( !KU( ~q ) @ #k.1 )
+        solve( !KU( 'g'^(~x*~x.1) ) @ #vk.26 )
           case C_QueryGeneration
-          solve( !KU( 'g'^(~x*~x.1) ) @ #vk.16 )
-            case C_QueryGeneration
-            solve( !KU( ~x ) @ #vk.17 )
-              case RevDH
-              by contradiction /* from formulas */
-            qed
-          next
-            case Generate_DH_key_pair
-            by solve( !KU( ~x.1 ) @ #vk.17 )
-          next
-            case c_exp
-            solve( !KU( ~x ) @ #vk.19 )
-              case RevDH
-              by contradiction /* from formulas */
+          solve( !KU( ~x ) @ #vk.33 )
+            case RevDH
+            solve( (#vr.10 = #l)  ∥ (#l < #vr.10) )
+              case case_1
+              by solve( !KU( ~connection_id ) @ #l )
+            next
+              case case_2
+              solve( !KU( ~connection_id ) @ #l )
+                case C_QueryGeneration
+                by contradiction /* cyclic */
+              qed
             qed
           qed
         next
-          case P_HandleQuery
-          solve( !KU( 'g'^(~x*~x.1) ) @ #vk.18 )
-            case Generate_DH_key_pair
-            by solve( !KU( ~x.1 ) @ #vk.19 )
+          case Generate_DH_key_pair
+          by solve( !KU( ~x.1 ) @ #vk.33 )
+        next
+          case c_exp
+          solve( !KU( ~x ) @ #vk.35 )
+            case RevDH
+            solve( (#vr.10 = #l)  ∥ (#l < #vr.10) )
+              case case_1
+              by solve( !KU( ~connection_id ) @ #l )
+            next
+              case case_2
+              solve( !KU( ~connection_id ) @ #l )
+                case C_QueryGeneration
+                by contradiction /* cyclic */
+              qed
+            qed
+          qed
+        qed
+      qed
+    next
+      case NonceReuse
+      solve( !KU( ~connection_id ) @ #l )
+        case C_QueryGeneration
+        solve( !KU( ~k ) @ #vk.2 )
+          case RevSK
+          solve( !KU( aead(k.2, n, a1, ~q) ) @ #vk.1 )
+            case C_QueryGeneration
+            solve( !KU( aead(Expand(Extract('blank',
+                                            <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                    <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32'),
+                             Expand(Extract(Expand(Extract('blank',
+                                                           <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                   <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 
+                                                    'g'^~x>,
+                                                   '32'),
+                                            <'HPKE_v1', 'secret', 'blank'>),
+                                    <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                     Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                    '32'),
+                             a2, p2)
+                   ) @ #vk.2 )
+              case C_QueryGeneration
+              by contradiction /* from formulas */
+            next
+              case c_aead
+              solve( !KU( Expand(Extract('blank',
+                                         <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                 <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32')
+                     ) @ #vk.3 )
+                case c_Expand
+                solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                          <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                  <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 
+                                                   'g'^~x>,
+                                                  '32'),
+                                           <'HPKE_v1', 'secret', 'blank'>),
+                                   <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                    Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                   '32')
+                       ) @ #vk.4 )
+                  case c_Expand
+                  solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                         ) @ #vk.7 )
+                    case c_Extract
+                    solve( !KU( Extract(Expand(Extract('blank',
+                                                       <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                               <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                               '32'),
+                                        <'HPKE_v1', 'secret', 'blank'>)
+                           ) @ #vk.20 )
+                      case c_Extract
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.31 )
+                        case C_QueryGeneration
+                        solve( !KU( ~x ) @ #vk.33 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      next
+                        case Generate_DH_key_pair
+                        by solve( !KU( ~x.1 ) @ #vk.33 )
+                      next
+                        case c_exp
+                        solve( !KU( ~x ) @ #vk.35 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      qed
+                    qed
+                  qed
+                qed
+              qed
+            qed
           next
             case P_HandleQuery
-            solve( !KU( ~x ) @ #vk.19 )
+            solve( !KU( aead(Expand(Extract('blank',
+                                            <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                    <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32'),
+                             Expand(Extract(Expand(Extract('blank',
+                                                           <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                   <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 
+                                                    'g'^~x>,
+                                                   '32'),
+                                            <'HPKE_v1', 'secret', 'blank'>),
+                                    <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                     Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                    '32'),
+                             a2, p2)
+                   ) @ #vk.2 )
+              case P_HandleQuery
+              by contradiction /* from formulas */
+            next
+              case c_aead
+              solve( !KU( Expand(Extract('blank',
+                                         <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                 <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>, '32')
+                     ) @ #vk.5 )
+                case c_Expand
+                solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                          <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                  <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 
+                                                   'g'^~x>,
+                                                  '32'),
+                                           <'HPKE_v1', 'secret', 'blank'>),
+                                   <'32', 'HPKE_v1', 'base_nonce', '0x01', 
+                                    Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                   '32')
+                       ) @ #vk.6 )
+                  case c_Expand
+                  solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                         ) @ #vk.9 )
+                    case c_Extract
+                    solve( !KU( Extract(Expand(Extract('blank',
+                                                       <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                               <'32', 'HPKE_v1', 'shared_secret', 'g'^~x.1, 'g'^~x>,
+                                               '32'),
+                                        <'HPKE_v1', 'secret', 'blank'>)
+                           ) @ #vk.22 )
+                      case c_Extract
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.33 )
+                        case Generate_DH_key_pair
+                        by solve( !KU( ~x.1 ) @ #vk.35 )
+                      next
+                        case P_HandleQuery
+                        solve( !KU( ~x ) @ #vk.35 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      next
+                        case c_exp
+                        solve( !KU( ~x ) @ #vk.37 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      qed
+                    qed
+                  qed
+                qed
+              qed
+            qed
+          next
+            case c_aead
+            by contradiction /* cyclic */
+          qed
+        qed
+      qed
+    next
+      case P_HandleQuery
+      solve( !KU( ~connection_id ) @ #l )
+        case C_QueryGeneration
+        solve( !KU( ~k ) @ #vk.34 )
+          case RevSK
+          solve( !KU( 'g'^(~x*~x.1) ) @ #vk.28 )
+            case Generate_DH_key_pair
+            by solve( !KU( ~x.1 ) @ #vk.35 )
+          next
+            case P_HandleQuery
+            solve( !KU( ~x ) @ #vk.35 )
               case RevDH
               by contradiction /* from formulas */
             qed
           next
             case c_exp
-            solve( !KU( ~x ) @ #vk.21 )
+            solve( !KU( ~x ) @ #vk.37 )
               case RevDH
               by contradiction /* from formulas */
             qed
@@ -859,138 +1311,300 @@ lemma consistency:
   all-traces
   "∀ q a C gx T gy #j.
     (C_Done( q, a, C, gx, T, gy ) @ #j) ⇒
-    ((∃ #i. (T_Answer( T, q, a ) @ #i) ∧ (#i < #j)) ∨
-     (∃ A kid gz #i.
-       ((RevDH( A, kid, gz ) @ #i) ∧
-        (((A = C) ∧ (gz = gx)) ∨ ((A = T) ∧ (gz = gy)))) ∧
-       (#i < #j)))"
+    ((∃ #i. (T_Answer( T, gy, q, a ) @ #i) ∧ (#i < #j)) ∨
+     (∃ kid #i. (RevDH( T, kid, gy ) @ #i) ∧ (#i < #j)))"
 /*
 guarded formula characterizing all counter-examples:
 "∃ q a C gx T gy #j.
   (C_Done( q, a, C, gx, T, gy ) @ #j)
  ∧
-  (∀ #i. (T_Answer( T, q, a ) @ #i) ⇒ ¬(#i < #j)) ∧
-  (∀ A kid gz #i.
-    (RevDH( A, kid, gz ) @ #i)
-   ⇒
-    (((((¬(A = C)) ∨ (¬(gz = gx)))) ∧ (((¬(A = T)) ∨ (¬(gz = gy))))) ∨
-     (¬(#i < #j))))"
+  (∀ #i. (T_Answer( T, gy, q, a ) @ #i) ⇒ ¬(#i < #j)) ∧
+  (∀ kid #i. (RevDH( T, kid, gy ) @ #i) ⇒ ¬(#i < #j))"
 */
 simplify
 solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
-                          response_secret, ~msg_id
+                          response_secret, response_nonce, ~msg_id
        ) ▶₀ #j )
   case C_QueryGeneration
-  solve( !KU( senc(<~msg_id, key_id, '0x02', 
-                    aead(Expand(Extract('blank',
-                                        <'HPKE_05', 'eae_prk', 
-                                         Expand(Extract('blank',
-                                                        <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                                <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1
-                                                >,
-                                                '32')
-                                        >),
-                                <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-                         a, <'32', key_id, '0x02'>)
+  solve( !KU( senc(<~msg_id, '0x02', '0x0000', 
+                    aead(Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_key', '32'),
+                         Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_nonce', '32'),
+                         <'0x02', '0x0000'>, a)
                    >,
                    ~k)
          ) @ #vk )
     case P_HandleResponse
-    solve( !KU( aead(Expand(Extract('blank',
-                                    <'HPKE_05', 'eae_prk', 
-                                     Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>,
-                                            '32')
-                                    >),
-                            <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-                     a, <'32', key_id, '0x02'>)
+    solve( !KU( aead(Expand(Extract(~query,
+                                    Expand(Expand(Extract(Expand(Extract('blank',
+                                                                         <'HPKE_v1', 'eae_prk', 
+                                                                          'g'^(~x*~x.1)>),
+                                                                 <'32', 'HPKE_v1', 'shared_secret', 
+                                                                  'g'^~x, 'g'^~x.1>,
+                                                                 '32'),
+                                                          <'HPKE_v1', 'secret', 'blank'>),
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                   Extract('blank',
+                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                  >,
+                                                  '32'),
+                                           <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                            'odoh_key', '32'),
+                     Expand(Extract(~query,
+                                    Expand(Expand(Extract(Expand(Extract('blank',
+                                                                         <'HPKE_v1', 'eae_prk', 
+                                                                          'g'^(~x*~x.1)>),
+                                                                 <'32', 'HPKE_v1', 'shared_secret', 
+                                                                  'g'^~x, 'g'^~x.1>,
+                                                                 '32'),
+                                                          <'HPKE_v1', 'secret', 'blank'>),
+                                                  <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                   Extract('blank',
+                                                           <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                  >,
+                                                  '32'),
+                                           <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                            'odoh_nonce', '32'),
+                     <'0x02', '0x0000'>, a)
            ) @ #vk.7 )
       case T_HandleQuery
-      solve( !KU( aead(Expand(Extract('blank',
-                                      <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                              <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32'),
-                       query.1, <'32', ~key_id, '0x01'>)
-             ) @ #vk.19 )
-        case C_QueryGeneration
-        by contradiction /* from formulas */
-      next
-        case P_HandleQuery
-        by contradiction /* from formulas */
-      next
-        case c_aead
-        solve( !KU( Expand(Extract('blank',
-                                   <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                           <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-               ) @ #vk.22 )
-          case c_Expand
-          solve( !KU( Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>)
-                 ) @ #vk.28 )
-            case c_Extract
-            solve( !KU( 'g'^(~x*~x.1) ) @ #vk.38 )
-              case C_QueryGeneration
-              solve( !KU( ~x.1 ) @ #vk.40 )
-                case RevDH
-                by contradiction /* from formulas */
-              qed
-            next
-              case Generate_DH_key_pair
-              by solve( !KU( ~x ) @ #vk.39 )
-            next
-              case P_HandleQuery
-              solve( !KU( ~x.1 ) @ #vk.41 )
-                case RevDH
-                by contradiction /* from formulas */
-              qed
-            next
-              case c_exp
-              by solve( !KU( ~x ) @ #vk.41 )
-            qed
-          qed
-        qed
-      qed
+      by contradiction /* from formulas */
     next
       case c_aead
-      solve( !KU( Expand(Extract('blank',
-                                 <'HPKE_05', 'eae_prk', 
-                                  Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                         <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-                                 >),
-                         <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32')
+      solve( !KU( Expand(Extract(~query,
+                                 Expand(Expand(Extract(Expand(Extract('blank',
+                                                                      <'HPKE_v1', 'eae_prk', 
+                                                                       'g'^(~x*~x.1)>),
+                                                              <'32', 'HPKE_v1', 'shared_secret', 
+                                                               'g'^~x, 'g'^~x.1>,
+                                                              '32'),
+                                                       <'HPKE_v1', 'secret', 'blank'>),
+                                               <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                Extract('blank',
+                                                        <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                               >,
+                                               '32'),
+                                        <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                         'odoh_key', '32')
              ) @ #vk.11 )
         case c_Expand
-        solve( !KU( Extract('blank',
-                            <'HPKE_05', 'eae_prk', 
-                             Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                    <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-                            >)
-               ) @ #vk.16 )
-          case c_Extract
-          solve( !KU( Expand(Extract('blank',
-                                     <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                             <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-                 ) @ #vk.26 )
-            case c_Expand
-            solve( !KU( Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>)
-                   ) @ #vk.30 )
-              case c_Extract
-              solve( !KU( 'g'^(~x*~x.1) ) @ #vk.36 )
-                case C_QueryGeneration
-                solve( !KU( ~x.1 ) @ #vk.38 )
-                  case RevDH
-                  by contradiction /* from formulas */
+        solve( !KU( Expand(Extract(~query,
+                                   Expand(Expand(Extract(Expand(Extract('blank',
+                                                                        <'HPKE_v1', 'eae_prk', 
+                                                                         'g'^(~x*~x.1)>),
+                                                                <'32', 'HPKE_v1', 'shared_secret', 
+                                                                 'g'^~x, 'g'^~x.1>,
+                                                                '32'),
+                                                         <'HPKE_v1', 'secret', 'blank'>),
+                                                 <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                  Extract('blank',
+                                                          <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                 >,
+                                                 '32'),
+                                          <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                           'odoh_nonce', '32')
+               ) @ #vk.12 )
+          case c_Expand
+          solve( !KU( Extract(~query,
+                              Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32'))
+                 ) @ #vk.14 )
+            case c_Extract
+            solve( !KU( ~query ) @ #vk.18 )
+              case C_QueryGeneration
+              solve( !KU( ~k ) @ #vk.28 )
+                case RevSK
+                solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                 <'HPKE_v1', 'eae_prk', 
+                                                                  'g'^(~x*~x.1)>),
+                                                         <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                          'g'^~x.1>,
+                                                         '32'),
+                                                  <'HPKE_v1', 'secret', 'blank'>),
+                                          <'32', 'HPKE_v1', 'exp', '0x01', 
+                                           Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                          >,
+                                          '32'),
+                                   <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                       ) @ #vk.28 )
+                  case c_Expand
+                  solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                            <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                    <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                     'g'^~x.1>,
+                                                    '32'),
+                                             <'HPKE_v1', 'secret', 'blank'>),
+                                     <'32', 'HPKE_v1', 'exp', '0x01', 
+                                      Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                     '32')
+                         ) @ #vk.54 )
+                    case c_Expand
+                    solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
+                      case C_QueryGeneration
+                      solve( !KU( ~x.1 ) @ #vk.62 )
+                        case RevDH
+                        by contradiction /* from formulas */
+                      qed
+                    next
+                      case Generate_DH_key_pair
+                      by solve( !KU( ~x ) @ #vk.62 )
+                    next
+                      case c_exp
+                      by solve( !KU( ~x ) @ #vk.64 )
+                    qed
+                  qed
                 qed
-              next
-                case Generate_DH_key_pair
-                by solve( !KU( ~x ) @ #vk.37 )
-              next
-                case P_HandleQuery
-                solve( !KU( ~x.1 ) @ #vk.39 )
-                  case RevDH
-                  by contradiction /* from formulas */
+              qed
+            next
+              case NonceReuse
+              solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                               <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                               >),
+                                                       <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                        'g'^~x.1>,
+                                                       '32'),
+                                                <'HPKE_v1', 'secret', 'blank'>),
+                                        <'32', 'HPKE_v1', 'exp', '0x01', 
+                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                        '32'),
+                                 <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                     ) @ #vk.20 )
+                case c_Expand
+                solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                          <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                  <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                   'g'^~x.1>,
+                                                  '32'),
+                                           <'HPKE_v1', 'secret', 'blank'>),
+                                   <'32', 'HPKE_v1', 'exp', '0x01', 
+                                    Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                   '32')
+                       ) @ #vk.23 )
+                  case c_Expand
+                  solve( !KU( Extract(Expand(Extract('blank',
+                                                     <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                             <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>,
+                                             '32'),
+                                      <'HPKE_v1', 'secret', 'blank'>)
+                         ) @ #vk.31 )
+                    case c_Extract
+                    solve( !KU( Expand(Extract('blank',
+                                               <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                       <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
+                           ) @ #vk.38 )
+                      case c_Expand
+                      solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                             ) @ #vk.44 )
+                        case c_Extract
+                        solve( !KU( 'g'^(~x*~x.1) ) @ #vk.53 )
+                          case C_QueryGeneration
+                          solve( !KU( ~k ) @ #vk.54 )
+                            case RevSK
+                            solve( !KU( ~x.1 ) @ #vk.55 )
+                              case RevDH
+                              by contradiction /* from formulas */
+                            qed
+                          qed
+                        next
+                          case Generate_DH_key_pair
+                          by solve( !KU( ~x ) @ #vk.54 )
+                        next
+                          case P_HandleQuery
+                          solve( !KU( ~x.1 ) @ #vk.56 )
+                            case RevDH
+                            by contradiction /* from formulas */
+                          qed
+                        next
+                          case c_exp
+                          by solve( !KU( ~x ) @ #vk.56 )
+                        qed
+                      qed
+                    qed
+                  qed
                 qed
-              next
-                case c_exp
-                by solve( !KU( ~x ) @ #vk.39 )
+              qed
+            next
+              case P_HandleQuery
+              solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                               <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                               >),
+                                                       <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                        'g'^~x.1>,
+                                                       '32'),
+                                                <'HPKE_v1', 'secret', 'blank'>),
+                                        <'32', 'HPKE_v1', 'exp', '0x01', 
+                                         Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                        '32'),
+                                 <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                     ) @ #vk.26 )
+                case c_Expand
+                solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                          <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                  <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                   'g'^~x.1>,
+                                                  '32'),
+                                           <'HPKE_v1', 'secret', 'blank'>),
+                                   <'32', 'HPKE_v1', 'exp', '0x01', 
+                                    Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                   '32')
+                       ) @ #vk.55 )
+                  case c_Expand
+                  solve( !KU( 'g'^(~x*~x.1) ) @ #vk.52 )
+                    case Generate_DH_key_pair
+                    by solve( !KU( ~x ) @ #vk.63 )
+                  next
+                    case P_HandleQuery
+                    solve( !KU( ~x.1 ) @ #vk.63 )
+                      case RevDH
+                      by contradiction /* from formulas */
+                    qed
+                  next
+                    case c_exp
+                    by solve( !KU( ~x ) @ #vk.65 )
+                  qed
+                qed
               qed
             qed
           qed
@@ -999,101 +1613,520 @@ solve( C_ResponseHandler( ~query, $C, gx, $P, ~k, $T, gy,
     qed
   next
     case c_senc
-    solve( !KU( aead(Expand(Extract('blank',
-                                    <'HPKE_05', 'eae_prk', 
-                                     Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                            <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>,
-                                            '32')
-                                    >),
-                            <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32'),
-                     a, <'32', key_id, '0x02'>)
-           ) @ #vk.8 )
-      case T_HandleQuery
-      solve( !KU( aead(Expand(Extract('blank',
-                                      <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                              <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32'),
-                       query.1, <'32', ~key_id, '0x01'>)
-             ) @ #vk.18 )
+    solve( !KU( ~k ) @ #vk.2 )
+      case RevSK
+      solve( !KU( ~msg_id ) @ #vk.3 )
         case C_QueryGeneration
-        by contradiction /* from formulas */
-      next
-        case P_HandleQuery
-        by contradiction /* from formulas */
-      next
-        case c_aead
-        solve( !KU( Expand(Extract('blank',
-                                   <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                           <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-               ) @ #vk.21 )
-          case c_Expand
-          solve( !KU( Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>)
-                 ) @ #vk.27 )
-            case c_Extract
-            solve( !KU( 'g'^(~x*~x.1) ) @ #vk.37 )
-              case C_QueryGeneration
-              solve( !KU( ~x.1 ) @ #vk.38 )
-                case RevDH
-                by contradiction /* from formulas */
+        solve( !KU( aead(Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_key', '32'),
+                         Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_nonce', '32'),
+                         <'0x02', '0x0000'>, a)
+               ) @ #vk.8 )
+          case T_HandleQuery
+          by contradiction /* from formulas */
+        next
+          case c_aead
+          solve( !KU( Expand(Extract(~query,
+                                     Expand(Expand(Extract(Expand(Extract('blank',
+                                                                          <'HPKE_v1', 'eae_prk', 
+                                                                           'g'^(~x*~x.1)>),
+                                                                  <'32', 'HPKE_v1', 
+                                                                   'shared_secret', 'g'^~x, 'g'^~x.1
+                                                                  >,
+                                                                  '32'),
+                                                           <'HPKE_v1', 'secret', 'blank'>),
+                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                    Extract('blank',
+                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                   >,
+                                                   '32'),
+                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                             'odoh_key', '32')
+                 ) @ #vk.10 )
+            case c_Expand
+            solve( !KU( Expand(Extract(~query,
+                                       Expand(Expand(Extract(Expand(Extract('blank',
+                                                                            <'HPKE_v1', 'eae_prk', 
+                                                                             'g'^(~x*~x.1)>),
+                                                                    <'32', 'HPKE_v1', 
+                                                                     'shared_secret', 'g'^~x, 
+                                                                     'g'^~x.1>,
+                                                                    '32'),
+                                                             <'HPKE_v1', 'secret', 'blank'>),
+                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                      Extract('blank',
+                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                              >)
+                                                     >,
+                                                     '32'),
+                                              <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                               'odoh_nonce', '32')
+                   ) @ #vk.11 )
+              case c_Expand
+              solve( !KU( Extract(~query,
+                                  Expand(Expand(Extract(Expand(Extract('blank',
+                                                                       <'HPKE_v1', 'eae_prk', 
+                                                                        'g'^(~x*~x.1)>),
+                                                               <'32', 'HPKE_v1', 'shared_secret', 
+                                                                'g'^~x, 'g'^~x.1>,
+                                                               '32'),
+                                                        <'HPKE_v1', 'secret', 'blank'>),
+                                                <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                 Extract('blank',
+                                                         <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                >,
+                                                '32'),
+                                         <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32'))
+                     ) @ #vk.13 )
+                case c_Extract
+                solve( !KU( ~query ) @ #vk.17 )
+                  case C_QueryGeneration
+                  solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                         ) @ #vk.25 )
+                    case c_Expand
+                    solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                              <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                              >),
+                                                      <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                       'g'^~x.1>,
+                                                      '32'),
+                                               <'HPKE_v1', 'secret', 'blank'>),
+                                       <'32', 'HPKE_v1', 'exp', '0x01', 
+                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                       '32')
+                           ) @ #vk.52 )
+                      case c_Expand
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.49 )
+                        case C_QueryGeneration
+                        solve( !KU( ~x.1 ) @ #vk.60 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      next
+                        case Generate_DH_key_pair
+                        by solve( !KU( ~x ) @ #vk.60 )
+                      next
+                        case c_exp
+                        by solve( !KU( ~x ) @ #vk.62 )
+                      qed
+                    qed
+                  qed
+                next
+                  case NonceReuse
+                  solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                         ) @ #vk.19 )
+                    case c_Expand
+                    solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                              <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                              >),
+                                                      <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                       'g'^~x.1>,
+                                                      '32'),
+                                               <'HPKE_v1', 'secret', 'blank'>),
+                                       <'32', 'HPKE_v1', 'exp', '0x01', 
+                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                       '32')
+                           ) @ #vk.22 )
+                      case c_Expand
+                      solve( !KU( Extract(Expand(Extract('blank',
+                                                         <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                 <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1
+                                                 >,
+                                                 '32'),
+                                          <'HPKE_v1', 'secret', 'blank'>)
+                             ) @ #vk.30 )
+                        case c_Extract
+                        solve( !KU( Expand(Extract('blank',
+                                                   <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                           <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>,
+                                           '32')
+                               ) @ #vk.37 )
+                          case c_Expand
+                          solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                                 ) @ #vk.43 )
+                            case c_Extract
+                            solve( !KU( 'g'^(~x*~x.1) ) @ #vk.52 )
+                              case C_QueryGeneration
+                              solve( !KU( ~x.1 ) @ #vk.53 )
+                                case RevDH
+                                by contradiction /* from formulas */
+                              qed
+                            next
+                              case Generate_DH_key_pair
+                              by solve( !KU( ~x ) @ #vk.53 )
+                            next
+                              case P_HandleQuery
+                              solve( !KU( ~x.1 ) @ #vk.55 )
+                                case RevDH
+                                by contradiction /* from formulas */
+                              qed
+                            next
+                              case c_exp
+                              by solve( !KU( ~x ) @ #vk.55 )
+                            qed
+                          qed
+                        qed
+                      qed
+                    qed
+                  qed
+                next
+                  case P_HandleQuery
+                  solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                         ) @ #vk.25 )
+                    case c_Expand
+                    solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                              <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                              >),
+                                                      <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                       'g'^~x.1>,
+                                                      '32'),
+                                               <'HPKE_v1', 'secret', 'blank'>),
+                                       <'32', 'HPKE_v1', 'exp', '0x01', 
+                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                       '32')
+                           ) @ #vk.54 )
+                      case c_Expand
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
+                        case Generate_DH_key_pair
+                        by solve( !KU( ~x ) @ #vk.62 )
+                      next
+                        case P_HandleQuery
+                        solve( !KU( ~x.1 ) @ #vk.62 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      next
+                        case c_exp
+                        by solve( !KU( ~x ) @ #vk.64 )
+                      qed
+                    qed
+                  qed
+                qed
               qed
-            next
-              case Generate_DH_key_pair
-              by solve( !KU( ~x ) @ #vk.38 )
-            next
-              case P_HandleQuery
-              solve( !KU( ~x.1 ) @ #vk.40 )
-                case RevDH
-                by contradiction /* from formulas */
-              qed
-            next
-              case c_exp
-              by solve( !KU( ~x ) @ #vk.40 )
             qed
           qed
         qed
-      qed
-    next
-      case c_aead
-      solve( !KU( Expand(Extract('blank',
-                                 <'HPKE_05', 'eae_prk', 
-                                  Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                         <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-                                 >),
-                         <'32', 'HPKE_05', 'shared_secret', 'odoh_response'>, '32')
-             ) @ #vk.10 )
-        case c_Expand
-        solve( !KU( Extract('blank',
-                            <'HPKE_05', 'eae_prk', 
-                             Expand(Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                                    <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-                            >)
-               ) @ #vk.15 )
-          case c_Extract
-          solve( !KU( Expand(Extract('blank',
-                                     <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>),
-                             <'32', 'HPKE_05', 'shared_secret', 'g'^~x, 'g'^~x.1>, '32')
-                 ) @ #vk.25 )
+      next
+        case P_HandleQuery
+        solve( !KU( aead(Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_key', '32'),
+                         Expand(Extract(~query,
+                                        Expand(Expand(Extract(Expand(Extract('blank',
+                                                                             <'HPKE_v1', 'eae_prk', 
+                                                                              'g'^(~x*~x.1)>),
+                                                                     <'32', 'HPKE_v1', 
+                                                                      'shared_secret', 'g'^~x, 
+                                                                      'g'^~x.1>,
+                                                                     '32'),
+                                                              <'HPKE_v1', 'secret', 'blank'>),
+                                                      <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                       Extract('blank',
+                                                               <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                               >)
+                                                      >,
+                                                      '32'),
+                                               <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                                'odoh_nonce', '32'),
+                         <'0x02', '0x0000'>, a)
+               ) @ #vk.8 )
+          case T_HandleQuery
+          by contradiction /* from formulas */
+        next
+          case c_aead
+          solve( !KU( Expand(Extract(~query,
+                                     Expand(Expand(Extract(Expand(Extract('blank',
+                                                                          <'HPKE_v1', 'eae_prk', 
+                                                                           'g'^(~x*~x.1)>),
+                                                                  <'32', 'HPKE_v1', 
+                                                                   'shared_secret', 'g'^~x, 'g'^~x.1
+                                                                  >,
+                                                                  '32'),
+                                                           <'HPKE_v1', 'secret', 'blank'>),
+                                                   <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                    Extract('blank',
+                                                            <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                   >,
+                                                   '32'),
+                                            <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                             'odoh_key', '32')
+                 ) @ #vk.12 )
             case c_Expand
-            solve( !KU( Extract('blank', <'HPKE_05', 'eae_prk', 'g'^(~x*~x.1)>)
-                   ) @ #vk.29 )
-              case c_Extract
-              solve( !KU( 'g'^(~x*~x.1) ) @ #vk.35 )
-                case C_QueryGeneration
-                solve( !KU( ~x.1 ) @ #vk.36 )
-                  case RevDH
-                  by contradiction /* from formulas */
+            solve( !KU( Expand(Extract(~query,
+                                       Expand(Expand(Extract(Expand(Extract('blank',
+                                                                            <'HPKE_v1', 'eae_prk', 
+                                                                             'g'^(~x*~x.1)>),
+                                                                    <'32', 'HPKE_v1', 
+                                                                     'shared_secret', 'g'^~x, 
+                                                                     'g'^~x.1>,
+                                                                    '32'),
+                                                             <'HPKE_v1', 'secret', 'blank'>),
+                                                     <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                      Extract('blank',
+                                                              <'HPKE_v1', 'info_hash', 'odoh_query'
+                                                              >)
+                                                     >,
+                                                     '32'),
+                                              <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')),
+                               'odoh_nonce', '32')
+                   ) @ #vk.13 )
+              case c_Expand
+              solve( !KU( Extract(~query,
+                                  Expand(Expand(Extract(Expand(Extract('blank',
+                                                                       <'HPKE_v1', 'eae_prk', 
+                                                                        'g'^(~x*~x.1)>),
+                                                               <'32', 'HPKE_v1', 'shared_secret', 
+                                                                'g'^~x, 'g'^~x.1>,
+                                                               '32'),
+                                                        <'HPKE_v1', 'secret', 'blank'>),
+                                                <'32', 'HPKE_v1', 'exp', '0x01', 
+                                                 Extract('blank',
+                                                         <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                                >,
+                                                '32'),
+                                         <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32'))
+                     ) @ #vk.15 )
+                case c_Extract
+                solve( !KU( ~query ) @ #vk.19 )
+                  case C_QueryGeneration
+                  solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                         ) @ #vk.27 )
+                    case c_Expand
+                    solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                              <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                              >),
+                                                      <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                       'g'^~x.1>,
+                                                      '32'),
+                                               <'HPKE_v1', 'secret', 'blank'>),
+                                       <'32', 'HPKE_v1', 'exp', '0x01', 
+                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                       '32')
+                           ) @ #vk.54 )
+                      case c_Expand
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.51 )
+                        case C_QueryGeneration
+                        solve( !KU( ~x.1 ) @ #vk.62 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      next
+                        case Generate_DH_key_pair
+                        by solve( !KU( ~x ) @ #vk.62 )
+                      next
+                        case c_exp
+                        by solve( !KU( ~x ) @ #vk.64 )
+                      qed
+                    qed
+                  qed
+                next
+                  case NonceReuse
+                  solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                         ) @ #vk.21 )
+                    case c_Expand
+                    solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                              <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                              >),
+                                                      <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                       'g'^~x.1>,
+                                                      '32'),
+                                               <'HPKE_v1', 'secret', 'blank'>),
+                                       <'32', 'HPKE_v1', 'exp', '0x01', 
+                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                       '32')
+                           ) @ #vk.24 )
+                      case c_Expand
+                      solve( !KU( Extract(Expand(Extract('blank',
+                                                         <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                                 <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1
+                                                 >,
+                                                 '32'),
+                                          <'HPKE_v1', 'secret', 'blank'>)
+                             ) @ #vk.32 )
+                        case c_Extract
+                        solve( !KU( Expand(Extract('blank',
+                                                   <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>),
+                                           <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 'g'^~x.1>,
+                                           '32')
+                               ) @ #vk.39 )
+                          case c_Expand
+                          solve( !KU( Extract('blank', <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)>)
+                                 ) @ #vk.45 )
+                            case c_Extract
+                            solve( !KU( 'g'^(~x*~x.1) ) @ #vk.54 )
+                              case C_QueryGeneration
+                              solve( !KU( ~x.1 ) @ #vk.55 )
+                                case RevDH
+                                by contradiction /* from formulas */
+                              qed
+                            next
+                              case Generate_DH_key_pair
+                              by solve( !KU( ~x ) @ #vk.55 )
+                            next
+                              case P_HandleQuery
+                              solve( !KU( ~x.1 ) @ #vk.57 )
+                                case RevDH
+                                by contradiction /* from formulas */
+                              qed
+                            next
+                              case c_exp
+                              by solve( !KU( ~x ) @ #vk.57 )
+                            qed
+                          qed
+                        qed
+                      qed
+                    qed
+                  qed
+                next
+                  case P_HandleQuery
+                  solve( !KU( Expand(Expand(Extract(Expand(Extract('blank',
+                                                                   <'HPKE_v1', 'eae_prk', 
+                                                                    'g'^(~x*~x.1)>),
+                                                           <'32', 'HPKE_v1', 'shared_secret', 
+                                                            'g'^~x, 'g'^~x.1>,
+                                                           '32'),
+                                                    <'HPKE_v1', 'secret', 'blank'>),
+                                            <'32', 'HPKE_v1', 'exp', '0x01', 
+                                             Extract('blank',
+                                                     <'HPKE_v1', 'info_hash', 'odoh_query'>)
+                                            >,
+                                            '32'),
+                                     <'32', 'HPKE_v1', 'sec', 'odoh_secret'>, '32')
+                         ) @ #vk.27 )
+                    case c_Expand
+                    solve( !KU( Expand(Extract(Expand(Extract('blank',
+                                                              <'HPKE_v1', 'eae_prk', 'g'^(~x*~x.1)
+                                                              >),
+                                                      <'32', 'HPKE_v1', 'shared_secret', 'g'^~x, 
+                                                       'g'^~x.1>,
+                                                      '32'),
+                                               <'HPKE_v1', 'secret', 'blank'>),
+                                       <'32', 'HPKE_v1', 'exp', '0x01', 
+                                        Extract('blank', <'HPKE_v1', 'info_hash', 'odoh_query'>)>,
+                                       '32')
+                           ) @ #vk.56 )
+                      case c_Expand
+                      solve( !KU( 'g'^(~x*~x.1) ) @ #vk.53 )
+                        case Generate_DH_key_pair
+                        by solve( !KU( ~x ) @ #vk.64 )
+                      next
+                        case P_HandleQuery
+                        solve( !KU( ~x.1 ) @ #vk.64 )
+                          case RevDH
+                          by contradiction /* from formulas */
+                        qed
+                      next
+                        case c_exp
+                        by solve( !KU( ~x ) @ #vk.66 )
+                      qed
+                    qed
+                  qed
                 qed
-              next
-                case Generate_DH_key_pair
-                by solve( !KU( ~x ) @ #vk.36 )
-              next
-                case P_HandleQuery
-                solve( !KU( ~x.1 ) @ #vk.38 )
-                  case RevDH
-                  by contradiction /* from formulas */
-                qed
-              next
-                case c_exp
-                by solve( !KU( ~x ) @ #vk.38 )
               qed
             qed
           qed

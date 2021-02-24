@@ -136,7 +136,7 @@ in
   , Eq(aead_verify(shared_secret, nonce, <'0x01', L, key_id>, ODoHEBody), true) 
   /* This action uniquely specifies the target completing the protcol. */
   , T_Done(~ttid, msg_id)
-  , T_Answer($T, query, answer)
+  , T_Answer($T, gy, query, answer)
   ]->
   [ Out(ODoHResponse2) ]
 
@@ -206,7 +206,7 @@ lemma aead_source[sources]:
   "All k n a p #j. KU(aead(k,n,a,p))@j
 ==>
   (Ex #i. KU(p)@i & #i < #j) |
-  (Ex T q #i. T_Answer(T, q, p)@i & #i < #j) |
+  (Ex T gy q #i. T_Answer(T, gy, q, p)@i & #i < #j) |
   (Ex C P T cid msg_id gx gy key #i. CQE(C, P, T, cid, p, msg_id, gx, gy, key)@i & #i < #j)"
 
 /* This lemma is an existance lemma, and checks that it is possible for the protocol to complete.
@@ -226,13 +226,17 @@ lemma secret_query:
     #i < #k"
 
 lemma secret_response:
-  "All T q a #j #k. T_Answer(T, q, a)@j &
-    KU(a)@k ==> (Ex kid gy #i. RevDH(T, kid, gy)@i & #i<#k)"
+  "All T gy q a #j #k. T_Answer(T, gy, q, a)@j &
+    KU(a)@k ==> (Ex kid #i. RevDH(T, kid, gy)@i & #i<#k)"
 
 
 lemma secret_response_nr:
-  "All T q a #j #k. T_Answer(T, q, a)@j &
-    KU(a)@k ==> (Ex k n p #i. ReuseNonce(k, n, q, p)@i & #i < #k)"
+  "All T q gy a #j #k. T_Answer(T, gy, q, a)@j &
+    KU(a)@k
+==>
+  (Ex k n p #i. ReuseNonce(k, n, a, p)@i & #i < #k) |
+  (Ex kid #i. RevDH(T, kid, gy)@i & #i < #k) |
+  (Ex #i. KU(q)@i & #i < #k)"
 
 /* This lemma states that if the attacker learns the connection id then it must have previously compromised the proxy. */
 lemma secret_cid:
@@ -261,7 +265,7 @@ lemma query_binding:
 lemma consistency:
   "All q a C gx T gy #j. C_Done(q, a, C, gx, T, gy)@j
 ==>
-  (Ex #i. T_Answer(T, q, a)@i & #i < #j) |
+  (Ex #i. T_Answer(T, gy, q, a)@i & #i < #j) |
   (Ex kid #i.
     RevDH(T, kid, gy)@i &
     #i < #j)"
