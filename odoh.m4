@@ -120,14 +120,14 @@ let
   msg_type2 = '0x02'
   psk = response_secret
   nonce2 = response_nonce
-  answer = r
+  answer = ~r
 in
   [ In(<$T, ODoHQuery>)
   , !Ltk($T, ~key_id, ~y)
   , Fr(~ttid)
   /* The attacker is allowed to choose the response.
    We allow this because it means we do not need to consider the security of the connection between the recursive resolver and the authorative resolver. */
-  , In(r)
+  , Fr(~r)
   ]
 --[ /* The target only accepts queries. */
     Eq(msg_type, expected_msg_type) 
@@ -215,14 +215,6 @@ lemma end_to_end:
   exists-trace
   "Ex q a  C gx T gy #i. C_Done(q, a, C, gx, T, gy)@i"
 
-lemma t_done:
-  exists-trace
-  "Ex ttid msg_id #i. T_Done(ttid, msg_id)@i"
-
-lemma p_done:
-  exists-trace
-  "Ex ptid msg_id #i. P_Done(ptid, msg_id)@i"
-
 /* This lemma states that if the attacker learns the query then it must have previously compromised the target. */
 lemma secret_query:
   "All C P T cid q msg_id gx gy key #j #k.
@@ -232,6 +224,15 @@ lemma secret_query:
   Ex kid #i.
     RevDH(T, kid, gy)@i &
     #i < #k"
+
+lemma secret_response:
+  "All T q a #j #k. T_Answer(T, q, a)@j &
+    KU(a)@k ==> (Ex kid gy #i. RevDH(T, kid, gy)@i & #i<#k)"
+
+
+lemma secret_response_nr:
+  "All T q a #j #k. T_Answer(T, q, a)@j &
+    KU(a)@k ==> (Ex k n p #i. ReuseNonce(k, n, q, p)@i & #i < #k)"
 
 /* This lemma states that if the attacker learns the connection id then it must have previously compromised the proxy. */
 lemma secret_cid:
