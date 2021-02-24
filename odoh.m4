@@ -116,6 +116,7 @@ let
   response_nonce = DeriveSecretsN(shared_secret, query)
   expected_aad = <L, key_id, '0x01'>
   key_id = ~key_id
+  key_id2 = '0x0000'
   msg_type2 = '0x02'
   psk = response_secret
   nonce2 = response_nonce
@@ -159,6 +160,7 @@ let
   expected_msg_type = '0x02'
   psk = response_secret
   nonce = response_nonce
+  key_id = '0x0000'
   msg_id = ~msg_id
 in
   [ /* The client consumes its previous state. */
@@ -168,7 +170,7 @@ in
     Eq(msg_type, expected_msg_type) 
   /* This action requires the response to correctly decrypt.
    As with the target this is already enforced by the pattern matching done on the input, but we leave it here as a signal of the requirement. */
-  , Eq(aead_verify(psk, nonce, <L, key_id, '0x02'>, ODoHResponseBody), true)
+  //, Eq(aead_verify(psk, nonce, <'0x02', L, '0x0000'>, ODoHResponseBody), true)
   /* This action uniquely specifies the client completing the protcol. */
   , C_Done(~query, answer, $C, gx,  $T, gy)
   ]->
